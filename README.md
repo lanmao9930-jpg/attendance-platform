@@ -80,7 +80,7 @@ https://你的项目.vercel.app/display?key=你的现场二维码屏密钥
 - `/display`：只展示二维码。
 - `/student`：只提交签到数据。
 - `/admin`：需要管理员口令。
-- `/api/checkins` 的 GET、`/api/summary`、`/api/export.csv`：必须管理员登录。
+- `/api/checkins` 的 GET、`/api/summary`、`/api/export`：必须管理员登录。
 - `/api/checkins` 的 POST：必须来自有效二维码扫码会话。
 
 ## 上线排查

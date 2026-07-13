@@ -203,7 +203,7 @@ loginForm.addEventListener("submit", async (event) => {
   loginBtn.textContent = "正在进入...";
   try {
     const formData = new FormData(loginForm);
-    await fetchJson("/api/admin/login", {
+    await fetchJson("/api/admin-login", {
       method: "POST",
       body: JSON.stringify({ password: formData.get("password") })
     });
@@ -239,10 +239,10 @@ refreshDataBtn.addEventListener("click", () => {
 });
 
 logoutBtn.addEventListener("click", async () => {
-  await fetchJson("/api/admin/logout", { method: "POST" }).catch(console.error);
+  await fetchJson("/api/admin-logout", { method: "POST" }).catch(console.error);
   showLogin("已退出后台。");
 });
 
-fetchJson("/api/admin/me")
+fetchJson("/api/admin-me")
   .then(startAdmin)
   .catch(() => showLogin());
