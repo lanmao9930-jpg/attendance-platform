@@ -2,6 +2,8 @@ const loginScreen = document.querySelector("#loginScreen");
 const loginForm = document.querySelector("#loginForm");
 const loginError = document.querySelector("#loginError");
 const loginBtn = document.querySelector("#loginBtn");
+const adminPassword = document.querySelector("#adminPassword");
+const togglePasswordBtn = document.querySelector("#togglePasswordBtn");
 const adminApp = document.querySelector("#adminApp");
 const panels = document.querySelectorAll("[data-panel]");
 const navButtons = document.querySelectorAll(".nav button");
@@ -39,6 +41,11 @@ async function fetchJson(url, options = {}) {
     throw error;
   }
   return data;
+}
+
+function showLoginError(message) {
+  loginError.textContent = message;
+  loginError.classList.remove("hidden");
 }
 
 function clearTimers() {
@@ -203,12 +210,17 @@ loginForm.addEventListener("submit", async (event) => {
     loginForm.reset();
     await startAdmin();
   } catch (error) {
-    loginError.textContent = error.message;
-    loginError.classList.remove("hidden");
+    showLoginError(error.status ? error.message : "登录请求没有到达后台，请检查 Vercel 部署保护、环境变量或 API 是否部署成功。");
   } finally {
     loginBtn.disabled = false;
     loginBtn.textContent = "进入后台";
   }
+});
+
+togglePasswordBtn.addEventListener("click", () => {
+  const visible = adminPassword.type === "text";
+  adminPassword.type = visible ? "password" : "text";
+  togglePasswordBtn.textContent = visible ? "显示" : "隐藏";
 });
 
 copyLinkBtn.addEventListener("click", async () => {

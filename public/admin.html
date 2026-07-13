@@ -14,7 +14,10 @@
         <p class="muted">后台只供行政事务中心、负责人或老师查看。学生扫码后只进入签到签退表单。</p>
         <div class="field">
           <label for="adminPassword">管理员口令</label>
-          <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+          <div class="password-row">
+            <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+            <button class="button secondary password-toggle" id="togglePasswordBtn" type="button">显示</button>
+          </div>
         </div>
         <div id="loginError" class="notice error hidden"></div>
         <button class="button" id="loginBtn" type="submit">进入后台</button>

@@ -3,7 +3,7 @@
 这个目录是可部署到 Vercel 的版本。页面分入口，数据走同一套后端接口：
 
 - `/display` 或 `/display.html`：现场二维码屏，只显示二维码。
-- `/student` 或 `/student.html?token=...`：学生扫码后的签到签退表单。
+- `/student?token=...`：学生扫码后的签到签退表单。
 - `/admin` 或 `/admin.html`：管理员后台，需要口令登录。
 - `/api/...`：后端接口，管理员数据接口强制校验登录。
 
@@ -82,3 +82,13 @@ https://你的项目.vercel.app/display?key=你的现场二维码屏密钥
 - `/admin`：需要管理员口令。
 - `/api/checkins` 的 GET、`/api/summary`、`/api/export.csv`：必须管理员登录。
 - `/api/checkins` 的 POST：必须来自有效二维码扫码会话。
+
+## 上线排查
+
+公开健康检查：
+
+```text
+https://你的项目.vercel.app/api/health
+```
+
+如果 `hasAdminPassword` 是 `false`，说明 Vercel 没有读到 `ADMIN_PASSWORD`，后台密码会退回本地默认值 `admin123`。如果 `publicOrigin` 不是你的正式 Vercel 域名，检查 `PUBLIC_BASE_URL` 是否填成了类似 `https://你的项目.vercel.app`，不要带 `/admin`、`/display` 或其他路径。

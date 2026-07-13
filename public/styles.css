@@ -183,6 +183,16 @@ h3 {
   width: 100%;
 }
 
+.password-row {
+  display: grid;
+  grid-template-columns: 1fr 72px;
+  gap: 8px;
+}
+
+.password-row .button {
+  width: auto;
+}
+
 .metric {
   padding: 18px;
 }
