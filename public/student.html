@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>值班签到签退</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="student-page">
+    <main class="student-wrap">
+      <section class="form-card">
+        <div class="form-head">
+          <p class="eyebrow">学生端</p>
+          <h1>服务团值班签到签退</h1>
+          <p class="muted">请确认本人在值班现场扫码后填写。本表单只收集本次签到签退所需信息。</p>
+        </div>
+
+        <div id="loadingNotice" class="notice">正在校验二维码...</div>
+        <div id="errorNotice" class="notice error hidden"></div>
+        <div id="successNotice" class="notice hidden"></div>
+
+        <form id="checkinForm" class="hidden">
+          <div class="field-grid">
+            <div class="field">
+              <label for="name">姓名</label>
+              <input id="name" name="name" required autocomplete="name">
+            </div>
+            <div class="field">
+              <label for="center">中心名</label>
+              <select id="center" name="center" required></select>
+            </div>
+            <div class="field">
+              <label for="dutyType">值班类型</label>
+              <select id="dutyType" name="dutyType" required></select>
+            </div>
+            <div class="field full">
+              <label>值班时间</label>
+              <div class="time-select-grid">
+                <select id="week" name="week" required aria-label="周数"></select>
+                <select id="weekday" name="weekday" required aria-label="星期"></select>
+                <select id="shift" name="shift" required aria-label="时间段"></select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="attendanceType">考勤类别</label>
+              <select id="attendanceType" name="attendanceType" required>
+                <option value="签到">签到</option>
+                <option value="签退">签退</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="photo">值班照片</label>
+              <input id="photo" name="photo" type="file" accept="image/*" capture="environment" required>
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top: 18px;">
+            <button class="button" id="submitBtn" type="submit">提交签到签退</button>
+          </div>
+        </form>
+      </section>
+    </main>
+    <script src="/student.js"></script>
+  </body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>就业服务团一体化值班考勤平台</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <section class="login-screen" id="loginScreen">
+      <form class="login-card" id="loginForm">
+        <p class="eyebrow">管理端登录</p>
+        <h1>就业服务团值班考勤后台</h1>
+        <p class="muted">后台只供行政事务中心、负责人或老师查看。学生扫码后只进入签到签退表单。</p>
+        <div class="field">
+          <label for="adminPassword">管理员口令</label>
+          <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <div id="loginError" class="notice error hidden"></div>
+        <button class="button" id="loginBtn" type="submit">进入后台</button>
+      </form>
+    </section>
+
+    <div class="app-shell hidden" id="adminApp">
+      <aside class="sidebar">
+        <div class="brand">
+          <strong>值班考勤平台</strong>
+          <span>动态二维码签到 · 排班对比 · 自动统计</span>
+        </div>
+        <nav class="nav" aria-label="管理端导航">
+          <button class="active" data-view="qr">现场二维码</button>
+          <button data-view="dashboard">考勤看板</button>
+          <button data-view="compare">排班对比</button>
+          <button data-view="records">原始记录</button>
+        </nav>
+        <p class="side-note">二维码建议只在就创处值班现场的大屏或固定设备上展示。</p>
+      </aside>
+
+      <main class="main">
+        <section class="topbar">
+          <div>
+            <p class="eyebrow">管理端</p>
+            <h1>就业服务团一体化值班考勤平台</h1>
+            <p class="muted">每 5 秒刷新二维码，学生扫码后填写签到签退信息，后台自动对比原排班。</p>
+          </div>
+          <div class="toolbar">
+            <a class="button secondary" href="/display.html" target="_blank" rel="noreferrer">现场二维码屏</a>
+            <a class="button secondary" id="exportLink" href="/api/export.csv">导出 CSV</a>
+            <button class="button" id="refreshDataBtn">刷新数据</button>
+            <button class="button secondary" id="logoutBtn" type="button">退出</button>
+          </div>
+        </section>
+
+        <section data-panel="qr" class="grid two">
+          <div class="panel qr-box">
+            <h2>现场动态二维码</h2>
+            <img id="qrImage" alt="动态签到二维码">
+            <div class="countdown" aria-label="二维码刷新倒计时"><span id="countdownBar"></span></div>
+            <p class="muted" id="qrCountdownText">正在生成二维码...</p>
+            <button class="button secondary" id="copyLinkBtn">复制当前签到链接</button>
+          </div>
+          <div class="panel">
+            <h2>使用规则</h2>
+            <p>二维码只在值班现场展示。学生扫码后会获得一次临时填写会话，填写完成后系统记录实际签到或签退时间。</p>
+            <p>二维码本身每 5 秒更新，临时填写会话有效期 3 分钟，避免学生扫码后还没填完就失效。</p>
+            <p>当前版本已移除定位字段，保留腾讯文档原表单中的姓名、中心、日期、值班时间、异常情况、调班时间、职位、图片、备注、签到/签退、连续值班和实习生签到签退。</p>
+          </div>
+        </section>
+
+        <section data-panel="dashboard" class="grid hidden">
+          <div class="grid four">
+            <div class="metric"><span>排班记录</span><strong id="metricSchedules">0</strong></div>
+            <div class="metric"><span>扫码记录</span><strong id="metricCheckins">0</strong></div>
+            <div class="metric"><span>正常</span><strong id="metricNormal">0</strong></div>
+            <div class="metric"><span>异常</span><strong id="metricAbnormal">0</strong></div>
+          </div>
+          <div class="panel">
+            <h2>各中心出勤率</h2>
+            <div class="bars" id="centerBars"></div>
+          </div>
+          <div class="panel">
+            <h2>状态分布</h2>
+            <div class="bars" id="statusBars"></div>
+          </div>
+        </section>
+
+        <section data-panel="compare" class="panel hidden">
+          <div class="toolbar" style="justify-content: space-between; margin-bottom: 14px;">
+            <h2>原排班与实际出勤对比</h2>
+            <span class="muted" id="summaryTime"></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>中心</th>
+                  <th>周次</th>
+                  <th>星期</th>
+                  <th>节次</th>
+                  <th>姓名</th>
+                  <th>签到</th>
+                  <th>签退</th>
+                  <th>照片</th>
+                  <th>状态</th>
+                  <th>原因</th>
+                </tr>
+              </thead>
+              <tbody id="compareBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section data-panel="records" class="panel hidden">
+          <div class="toolbar" style="justify-content: space-between; margin-bottom: 14px;">
+            <h2>扫码原始记录</h2>
+            <span class="muted">用于追溯每一次表单提交</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>提交时间</th>
+                  <th>姓名</th>
+                  <th>中心</th>
+                  <th>周次</th>
+                  <th>星期</th>
+                  <th>节次</th>
+                  <th>值班类型</th>
+                  <th>类别</th>
+                  <th>异常</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody id="recordsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="/admin.js"></script>
+  </body>
+</html>

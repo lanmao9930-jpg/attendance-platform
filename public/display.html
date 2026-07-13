@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>现场动态二维码</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="display-page">
+    <main class="display-shell">
+      <section class="display-panel">
+        <div>
+          <p class="eyebrow">现场签到码</p>
+          <h1>就业服务团值班签到签退</h1>
+          <p class="muted">学生扫码后直接进入信息收集表单。二维码每 5 秒自动刷新。</p>
+        </div>
+        <img id="displayQrImage" alt="现场动态签到二维码">
+        <div class="countdown" aria-label="二维码刷新倒计时"><span id="displayCountdownBar"></span></div>
+        <p class="muted" id="displayCountdownText">正在生成二维码...</p>
+        <p class="muted small-text" id="displayLinkText"></p>
+        <div id="displayError" class="notice error hidden"></div>
+      </section>
+    </main>
+    <script src="/display.js"></script>
+  </body>
+</html>
