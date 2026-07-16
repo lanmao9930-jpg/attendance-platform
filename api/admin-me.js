@@ -1,3 +1,3 @@
-const { run } = require("../lib/vercel-handler");
+const { createHandler } = require("../lib/vercel-handler");
 
-module.exports = run;
+module.exports = createHandler("/api/admin-me");
