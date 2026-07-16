@@ -15,6 +15,9 @@ const files = [
   "api/open-checkin.js",
   "api/options.js",
   "api/qr-svg.js",
+  "api/photo.js",
+  "api/reviews.js",
+  "api/schedules.js",
   "api/summary.js",
   "lib/api.js",
   "lib/attendance.js",
@@ -27,7 +30,8 @@ const files = [
   "lib/vercel-handler.js",
   "public/admin.js",
   "public/display.js",
-  "public/student.js"
+  "public/student.js",
+  "scripts/integration-test.js"
 ];
 
 for (const file of files) {

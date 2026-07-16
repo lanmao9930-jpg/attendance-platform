@@ -1,94 +1,47 @@
-# 就业服务团值班考勤平台 Vercel 部署版
+# 就业服务团值班考勤平台
 
-这个目录是可部署到 Vercel 的版本。页面分入口，数据走同一套后端接口：
+这是一个面向就业服务团的值班签到签退平台，分成严格隔离的三类页面：
 
-- `/display` 或 `/display.html`：现场二维码屏，只显示二维码。
-- `/student?token=...`：学生扫码后的签到签退表单。
-- `/admin` 或 `/admin.html`：管理员后台，需要口令登录。
-- `/api/...`：后端接口，管理员数据接口强制校验登录。
+- `/display?key=...`：现场设备的二维码屏，只显示二维码。
+- `/student?token=...`：学生扫码后的签到、签退与值班照片表单。
+- `/admin`：管理员口令登录后的固定排班、考勤审核、原始归档和导出。
+
+学生不会看到管理员入口、看板、排班、原始记录或导出；根地址 `/` 也不会展示管理入口。
 
 ## 本地预览
 
 ```powershell
 cd C:\Users\ASUS\Documents\Codex\2026-06-11\files-mentioned-by-the-user-3\outputs\attendance-platform-vercel
-C:\Users\ASUS\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\pnpm.cmd install
-C:\Users\ASUS\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe local-server.js
+pnpm install
+$env:ADMIN_PASSWORD="12345678"
+$env:QR_SECRET="至少32位的本地测试随机字符串"
+$env:DISPLAY_TOKEN="现场屏测试密钥"
+pnpm start
 ```
-
-也可以直接运行 `start-local.cmd`。
 
 本地地址：
 
-- 入口页：http://localhost:8788/
-- 现场二维码屏：http://localhost:8788/display
-- 管理后台：http://localhost:8788/admin
-- 默认管理员口令：`admin123`
+- 现场二维码屏：`http://localhost:8788/display?key=现场屏测试密钥`
+- 管理端：`http://localhost:8788/admin`
 
-## 学生端问题
+## 验证
 
-学生扫码后只会看到：
-
-- 姓名
-- 所在中心
-- 值班类型：线下 / 线上
-- 值班时间：周数、星期、时间段
-- 签到 / 签退
-- 值班照片，必填，浏览器会自动压缩后上传
-
-学生端不会出现考勤看板、排班对比、原始记录、导出等后台内容。
-
-## Vercel 环境变量
-
-部署前在 Vercel Project Settings -> Environment Variables 添加：
-
-```text
-PUBLIC_BASE_URL=https://你的项目.vercel.app
-ADMIN_PASSWORD=你的管理员口令
-QR_SECRET=一串随机密钥，至少 32 位
-DISPLAY_TOKEN=现场二维码屏密钥
-BLOB_READ_WRITE_TOKEN=Vercel Blob 的读写 token
+```powershell
+pnpm check
+node scripts\integration-test.js
 ```
 
-如果设置了 `DISPLAY_TOKEN`，现场屏幕地址要带 key：
+集成测试默认检查 `http://localhost:8789`。启动该端口的测试服务时可使用：
 
-```text
-https://你的项目.vercel.app/display?key=你的现场二维码屏密钥
+```powershell
+$env:PORT="8789"
+$env:ADMIN_PASSWORD="12345678"
+$env:QR_SECRET="local-test-secret-12345678901234567890"
+$env:DISPLAY_TOKEN="display-test-key"
+$env:ATTENDANCE_DATA_DIR=".test-data"
+pnpm start
 ```
 
-管理员也可以登录后台后打开二维码屏。学生扫码后只进入表单。
+## 正式部署
 
-## Vercel 部署步骤
-
-1. 把 `attendance-platform-vercel` 目录作为一个 GitHub 仓库推上去。
-2. 登录 Vercel，选择 Add New Project。
-3. 导入这个 GitHub 仓库。
-4. Framework Preset 选 Other。
-5. Build Command 留空或使用 `pnpm install`。
-6. Output Directory 留空。
-7. 添加上面的环境变量。
-8. 在 Vercel Storage 里创建 Blob，并把 `BLOB_READ_WRITE_TOKEN` 配到环境变量。
-9. Deploy。
-
-## 存储说明
-
-本地预览时使用 `data/attendance-db.json` 和 `data/photos/`。
-
-部署到 Vercel 后，如果配置了 `BLOB_READ_WRITE_TOKEN`，系统会把考勤记录和照片存入 Vercel Blob。这个方案适合先跑通真实流程。后续如果记录量很大，再把记录迁移到 Neon/Supabase/Postgres，照片继续放对象存储。
-
-## 权限边界
-
-- `/display`：只展示二维码。
-- `/student`：只提交签到数据。
-- `/admin`：需要管理员口令。
-- `/api/checkins` 的 GET、`/api/summary`、`/api/export`：必须管理员登录。
-- `/api/checkins` 的 POST：必须来自有效二维码扫码会话。
-
-## 上线排查
-
-公开健康检查：
-
-```text
-https://你的项目.vercel.app/api/health
-```
-
-如果 `hasAdminPassword` 是 `false`，说明 Vercel 没有读到 `ADMIN_PASSWORD`，后台密码会退回本地默认值 `admin123`。如果 `publicOrigin` 不是你的正式 Vercel 域名，检查 `PUBLIC_BASE_URL` 是否填成了类似 `https://你的项目.vercel.app`，不要带 `/admin`、`/display` 或其他路径。
+完整需求基线见 [docs/需求说明书.md](docs/需求说明书.md)。Vercel 的根目录、Blob、环境变量、部署保护和 404 排查见 [docs/VERCEL上线交接.md](docs/VERCEL上线交接.md)。

@@ -6,3 +6,4 @@ server.err
 server.err.log
 data/photos/
 data/attendance-db.json
+.test-data/

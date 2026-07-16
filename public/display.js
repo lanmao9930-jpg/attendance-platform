@@ -1,7 +1,6 @@
 const displayQrImage = document.querySelector("#displayQrImage");
 const displayCountdownBar = document.querySelector("#displayCountdownBar");
 const displayCountdownText = document.querySelector("#displayCountdownText");
-const displayLinkText = document.querySelector("#displayLinkText");
 const displayError = document.querySelector("#displayError");
 const displayKey = new URLSearchParams(location.search).get("key") || "";
 
@@ -32,7 +31,6 @@ async function refreshQr() {
   if (!currentQr || currentQr.token !== data.token) {
     currentQr = data;
     displayQrImage.src = `${data.qrSvgUrl}&t=${Date.now()}`;
-    displayLinkText.textContent = `扫码目标：${data.checkinUrl}`;
   }
 }
 

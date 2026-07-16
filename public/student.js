@@ -20,11 +20,11 @@ async function fetchJson(url, options) {
 }
 
 function fillSelect(select, values) {
-  select.innerHTML = values.map((value) => `<option value="${value}">${value}</option>`).join("");
+  select.innerHTML = ["<option value=\"\" selected disabled>请选择</option>", ...values.map((value) => `<option value="${value}">${value}</option>`)].join("");
 }
 
 function fillOptions(select, items) {
-  select.innerHTML = items.map((item) => `<option value="${item.value}">${item.label}</option>`).join("");
+  select.innerHTML = ["<option value=\"\" selected disabled>请选择</option>", ...items.map((item) => `<option value="${item.value}">${item.label}</option>`)].join("");
 }
 
 function renderOptions(options) {
