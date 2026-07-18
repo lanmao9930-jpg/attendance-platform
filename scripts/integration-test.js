@@ -57,6 +57,10 @@ async function run() {
   assert.equal(login.response.status, 200);
   assert.match(adminCookie, /^attendance_admin=/);
 
+  const adminDisplay = await request("/api/admin-display-url", {}, true);
+  assert.equal(adminDisplay.response.status, 200);
+  assert.match(adminDisplay.body.displayUrl, /\/display\?key=display-test-key$/);
+
   const imported = await request("/api/schedules", {
     method: "POST",
     body: json({
@@ -114,6 +118,7 @@ async function run() {
   console.log(JSON.stringify({
     health: health.body.version,
     storage: health.body.storageMode,
+    displayUrlProtected: /display\?key=display-test-key$/.test(adminDisplay.body.displayUrl),
     importedSchedules: imported.body.count,
     finalStatus: summary.body.rows[0].status,
     photoContentType: photoResult.contentType

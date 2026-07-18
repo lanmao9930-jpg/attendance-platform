@@ -10,7 +10,8 @@ const navButtons = document.querySelectorAll(".nav button");
 const qrImage = document.querySelector("#qrImage");
 const countdownBar = document.querySelector("#countdownBar");
 const qrCountdownText = document.querySelector("#qrCountdownText");
-const copyLinkBtn = document.querySelector("#copyLinkBtn");
+const openDisplayBtn = document.querySelector("#openDisplayBtn");
+const copyDisplayLinkBtn = document.querySelector("#copyDisplayLinkBtn");
 const refreshDataBtn = document.querySelector("#refreshDataBtn");
 const logoutBtn = document.querySelector("#logoutBtn");
 const importSchedulesBtn = document.querySelector("#importSchedulesBtn");
@@ -20,6 +21,7 @@ const reviewNotice = document.querySelector("#reviewNotice");
 
 const attendanceStatuses = ["正常", "调班", "迟到", "缺勤"];
 let currentQr = null;
+let displayUrl = "";
 let countdownTimer = null;
 let summaryTimer = null;
 
@@ -98,6 +100,11 @@ async function refreshQr() {
     currentQr = data;
     qrImage.src = `${data.qrSvgUrl}&t=${Date.now()}`;
   }
+}
+
+async function refreshDisplayUrl() {
+  const data = await fetchJson("/api/admin-display-url");
+  displayUrl = data.displayUrl;
 }
 
 function updateCountdown() {
@@ -276,7 +283,7 @@ async function importSchedules() {
 
 async function startAdmin() {
   showAdmin();
-  await Promise.all([refreshQr(), refreshData()]).catch((error) => {
+  await Promise.all([refreshQr(), refreshData(), refreshDisplayUrl()]).catch((error) => {
     if (!handleAuthError(error)) showReviewNotice(error.message, true);
   });
   clearTimers();
@@ -314,13 +321,17 @@ togglePasswordBtn.addEventListener("click", () => {
   togglePasswordBtn.setAttribute("aria-label", visible ? "显示密码" : "隐藏密码");
 });
 
-copyLinkBtn.addEventListener("click", async () => {
-  if (!currentQr) return;
+openDisplayBtn.addEventListener("click", () => {
+  if (displayUrl) window.open(displayUrl, "_blank", "noopener");
+});
+
+copyDisplayLinkBtn.addEventListener("click", async () => {
+  if (!displayUrl) return;
   try {
-    await navigator.clipboard.writeText(currentQr.checkinUrl);
-    copyLinkBtn.textContent = "已复制";
+    await navigator.clipboard.writeText(displayUrl);
+    copyDisplayLinkBtn.textContent = "已复制";
   } finally {
-    setTimeout(() => { copyLinkBtn.textContent = "复制当前签到链接"; }, 1400);
+    setTimeout(() => { copyDisplayLinkBtn.textContent = "复制现场屏地址"; }, 1400);
   }
 });
 

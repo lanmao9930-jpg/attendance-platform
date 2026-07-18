@@ -1,6 +1,4 @@
 const displayQrImage = document.querySelector("#displayQrImage");
-const displayCountdownBar = document.querySelector("#displayCountdownBar");
-const displayCountdownText = document.querySelector("#displayCountdownText");
 const displayError = document.querySelector("#displayError");
 const displayKey = new URLSearchParams(location.search).get("key") || "";
 
@@ -37,9 +35,6 @@ async function refreshQr() {
 function updateCountdown() {
   if (!currentQr) return;
   const left = Math.max(0, currentQr.expiresAt - Date.now());
-  const ratio = Math.max(0, Math.min(1, left / currentQr.intervalMs));
-  displayCountdownBar.style.width = `${ratio * 100}%`;
-  displayCountdownText.textContent = `二维码将在 ${(left / 1000).toFixed(1)} 秒后刷新`;
   if (left <= 150) {
     refreshQr().catch((error) => {
       showDisplayError(error.status === 401 ? "现场二维码屏未授权，请检查 display key。" : error.message);
