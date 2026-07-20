@@ -13,7 +13,7 @@
 ```powershell
 cd C:\Users\ASUS\Documents\Codex\2026-06-11\files-mentioned-by-the-user-3\outputs\attendance-platform-vercel
 npm install
-$env:ADMIN_PASSWORD="12345678"
+$env:ADMIN_PASSWORD="仅用于本地预览的口令"
 $env:QR_SECRET="至少32位的本地测试随机字符串"
 $env:DISPLAY_TOKEN="现场屏测试密钥"
 npm start
@@ -35,7 +35,7 @@ node scripts\integration-test.js
 
 ```powershell
 $env:PORT="8789"
-$env:ADMIN_PASSWORD="12345678"
+$env:ADMIN_PASSWORD="仅用于本地测试的口令"
 $env:QR_SECRET="local-test-secret-12345678901234567890"
 $env:DISPLAY_TOKEN="display-test-key"
 $env:ATTENDANCE_DATA_DIR=".test-data"
@@ -49,5 +49,7 @@ npm start
 - 管理端：`https://attendance-platform-d1b99a89a6e3.service.tcloudbase.com/admin`
 - 现场屏：管理员登录后点击“打开现场屏”或“复制现场屏地址”
 - 学生端：只通过现场动态二维码进入
+
+正式管理员口令由随机值生成，只保存在被 Git 忽略的 `.env.local`，不要改回简单数字口令。
 
 完整需求基线见 [docs/需求说明书.md](docs/需求说明书.md)，CloudBase 环境、数据集合、部署和验收记录见 [docs/CLOUDBASE上线交接.md](docs/CLOUDBASE上线交接.md)。Vercel 仅保留为历史测试和故障排查参考。
