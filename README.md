@@ -12,11 +12,11 @@
 
 ```powershell
 cd C:\Users\ASUS\Documents\Codex\2026-06-11\files-mentioned-by-the-user-3\outputs\attendance-platform-vercel
-pnpm install
+npm install
 $env:ADMIN_PASSWORD="12345678"
 $env:QR_SECRET="至少32位的本地测试随机字符串"
 $env:DISPLAY_TOKEN="现场屏测试密钥"
-pnpm start
+npm start
 ```
 
 本地地址：
@@ -27,7 +27,7 @@ pnpm start
 ## 验证
 
 ```powershell
-pnpm check
+npm run check
 node scripts\integration-test.js
 ```
 
@@ -39,9 +39,15 @@ $env:ADMIN_PASSWORD="12345678"
 $env:QR_SECRET="local-test-secret-12345678901234567890"
 $env:DISPLAY_TOKEN="display-test-key"
 $env:ATTENDANCE_DATA_DIR=".test-data"
-pnpm start
+npm start
 ```
 
 ## 正式部署
 
-完整需求基线见 [docs/需求说明书.md](docs/需求说明书.md)。Vercel 的根目录、Blob、环境变量、部署保护和 404 排查见 [docs/VERCEL上线交接.md](docs/VERCEL上线交接.md)。
+正式环境已迁移至腾讯云 CloudBase：
+
+- 管理端：`https://attendance-platform-d1b99a89a6e3.service.tcloudbase.com/admin`
+- 现场屏：管理员登录后点击“打开现场屏”或“复制现场屏地址”
+- 学生端：只通过现场动态二维码进入
+
+完整需求基线见 [docs/需求说明书.md](docs/需求说明书.md)，CloudBase 环境、数据集合、部署和验收记录见 [docs/CLOUDBASE上线交接.md](docs/CLOUDBASE上线交接.md)。Vercel 仅保留为历史测试和故障排查参考。

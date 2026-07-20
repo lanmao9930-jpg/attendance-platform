@@ -3,6 +3,9 @@ const path = require("node:path");
 
 const files = [
   "local-server.js",
+  "scripts/init-cloudbase-env.js",
+  "scripts/cloudbase-setup.js",
+  "scripts/cloudbase-smoke-test.js",
   "api/[...path].js",
   "lib/api.js",
   "lib/attendance.js",

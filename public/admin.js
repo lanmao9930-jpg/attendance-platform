@@ -137,7 +137,8 @@ function renderSummary(summary, checkins, schedules, storage) {
   document.querySelector("#metricAbnormal").textContent = summary.totalSchedules - (summary.counts["正常"] || 0);
   document.querySelector("#scheduleCount").textContent = summary.totalSchedules;
   document.querySelector("#checkinCount").textContent = summary.totalCheckins;
-  document.querySelector("#storageMode").textContent = storage.mode === "vercel-blob" ? "Vercel Blob" : "本地预览";
+  const storageLabels = { cloudbase: "CloudBase 云数据库与云存储", "vercel-blob": "Vercel Blob", "local-json": "本地预览" };
+  document.querySelector("#storageMode").textContent = storageLabels[storage.mode] || storage.mode;
   document.querySelector("#summaryTime").textContent = `更新时间：${formatTime(summary.generatedAt)}`;
   document.querySelector("#recordsCount").textContent = `${checkins.length} 条`;
   document.querySelector("#scheduleTableCount").textContent = `${schedules.length} 条`;

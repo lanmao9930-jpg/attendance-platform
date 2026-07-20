@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "version": "2.0",
+  "envId": "attendance-platform-d1b99a89a6e3",
+  "region": "ap-shanghai",
+  "functionRoot": ".",
+  "functions": [
+    {
+      "name": "attendance-platform",
+      "type": "HTTP",
+      "dir": ".",
+      "runtime": "Nodejs20.19",
+      "timeout": 60,
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "NODE_ENV": "production",
+        "CLOUDBASE_ENV_ID": "attendance-platform-d1b99a89a6e3",
+        "ADMIN_PASSWORD": "{{env.ADMIN_PASSWORD}}",
+        "QR_SECRET": "{{env.QR_SECRET}}"
+      },
+      "ignore": [
+        ".git",
+        ".git/**/*",
+        ".test-data",
+        ".test-data/**/*",
+        "api",
+        "api/**/*",
+        "data",
+        "data/**/*",
+        "docs",
+        "docs/**/*",
+        "node_modules",
+        "node_modules/**/*",
+        "scripts",
+        "scripts/**/*",
+        "*.log",
+        "*.cmd",
+        "vercel.json"
+      ]
+    }
+  ]
+}

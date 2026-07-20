@@ -1,6 +1,6 @@
 {
-  "name": "attendance-platform-vercel",
-  "version": "0.2.0",
+  "name": "attendance-platform",
+  "version": "0.3.0",
   "private": true,
   "type": "commonjs",
   "scripts": {
@@ -9,6 +9,7 @@
     "check": "node scripts/check.js"
   },
   "dependencies": {
+    "@cloudbase/node-sdk": "^3.18.3",
     "@vercel/blob": "^2.0.0",
     "qrcode": "^1.5.4"
   }
