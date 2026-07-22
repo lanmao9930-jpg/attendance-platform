@@ -22,6 +22,8 @@
       "ignore": [
         ".env",
         ".env.*",
+        ".cloudbase-download-*",
+        ".cloudbase-download-*/**/*",
         ".git",
         ".git/**/*",
         ".test-data",
@@ -36,6 +38,8 @@
         "node_modules/**/*",
         "scripts",
         "scripts/**/*",
+        "vendor",
+        "vendor/**/*",
         "*.log",
         "*.cmd",
         "vercel.json"
