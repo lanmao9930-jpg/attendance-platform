@@ -88,11 +88,13 @@ a {
 
 .main {
   padding: 28px;
+  min-width: 0;
   overflow: auto;
 }
 
 .topbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
@@ -154,6 +156,7 @@ h3 {
 
 .panel {
   padding: 20px;
+  min-width: 0;
 }
 
 .section-heading {
@@ -312,6 +315,105 @@ h3 {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+.file-import {
+  display: grid;
+  gap: 8px;
+}
+
+.file-upload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-upload-row input[type="file"] {
+  min-width: 0;
+  padding: 7px;
+}
+
+.topbar .toolbar {
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.import-preview {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.import-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.import-summary div {
+  padding: 12px;
+  border-right: 1px solid var(--line);
+}
+
+.import-summary div:last-child {
+  border-right: 0;
+}
+
+.import-summary dt {
+  color: var(--muted);
+}
+
+.import-summary dd {
+  margin: 5px 0 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.sheet-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.sheet-summary div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.sheet-summary span {
+  color: var(--muted);
+  text-align: right;
+}
+
+.notice ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.preview-table-wrap table {
+  min-width: 760px;
+}
+
+.legacy-import {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.legacy-import summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.legacy-import label,
+.legacy-import textarea,
+.legacy-import .toolbar {
+  margin-top: 10px;
 }
 
 .table-wrap {
@@ -637,6 +739,20 @@ textarea {
   .check-grid,
   .time-select-grid {
     grid-template-columns: 1fr;
+  }
+
+  .file-upload-row,
+  .import-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .import-summary div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .import-summary div:last-child {
+    border-bottom: 0;
   }
 
   .portal-actions {

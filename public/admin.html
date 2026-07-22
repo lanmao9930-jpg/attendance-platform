@@ -75,11 +75,50 @@
               <h2>固定值班排班</h2>
               <span id="scheduleImportNotice" class="muted"></span>
             </div>
-            <label for="schedulePaste">Excel 排班数据</label>
-            <textarea id="schedulePaste" spellcheck="false" placeholder="中心	周次	星期	节次	值班人员	职位	联系电话"></textarea>
-            <div class="toolbar" style="margin-top: 12px;">
-              <button class="button" id="importSchedulesBtn" type="button">导入并覆盖固定排班</button>
+            <div class="file-import">
+              <label for="scheduleFile">排班文件</label>
+              <div class="file-upload-row">
+                <input id="scheduleFile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
+                <button class="button secondary" id="analyzeScheduleFileBtn" type="button" disabled>重新解析</button>
+              </div>
+              <span id="scheduleFileMeta" class="muted">尚未选择文件</span>
             </div>
+
+            <div id="scheduleImportPreview" class="import-preview hidden">
+              <div class="section-heading">
+                <h3>自动识别结果</h3>
+                <span id="schedulePreviewSource" class="muted"></span>
+              </div>
+              <dl class="import-summary">
+                <div><dt>固定排班</dt><dd id="schedulePreviewCount">0</dd></div>
+                <div><dt>值班同学</dt><dd id="schedulePreviewPeople">0</dd></div>
+                <div><dt>需检查行</dt><dd id="schedulePreviewIssues">0</dd></div>
+                <div><dt>非两次排班</dt><dd id="schedulePreviewDutyWarnings">0</dd></div>
+              </dl>
+              <div id="scheduleSheetSummary" class="sheet-summary"></div>
+              <div id="scheduleIssueSummary" class="notice error hidden"></div>
+              <div class="table-wrap preview-table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>中心</th><th>周次</th><th>星期</th><th>节次</th><th>姓名</th><th>职位</th><th>联系电话</th></tr>
+                  </thead>
+                  <tbody id="schedulePreviewBody"></tbody>
+                </table>
+              </div>
+              <div class="toolbar">
+                <button class="button" id="confirmScheduleImportBtn" type="button" disabled>确认覆盖固定排班</button>
+                <button class="button secondary" id="cancelScheduleImportBtn" type="button">取消</button>
+              </div>
+            </div>
+
+            <details class="legacy-import">
+              <summary>粘贴数据（备用）</summary>
+              <label for="schedulePaste">Excel 排班数据</label>
+              <textarea id="schedulePaste" spellcheck="false" placeholder="中心	周次	星期	节次	值班人员	职位	联系电话"></textarea>
+              <div class="toolbar">
+                <button class="button secondary" id="importSchedulesBtn" type="button">按粘贴内容覆盖</button>
+              </div>
+            </details>
           </div>
           <div class="panel">
             <div class="section-heading">

@@ -16,6 +16,14 @@ const refreshDataBtn = document.querySelector("#refreshDataBtn");
 const logoutBtn = document.querySelector("#logoutBtn");
 const importSchedulesBtn = document.querySelector("#importSchedulesBtn");
 const schedulePaste = document.querySelector("#schedulePaste");
+const scheduleFile = document.querySelector("#scheduleFile");
+const analyzeScheduleFileBtn = document.querySelector("#analyzeScheduleFileBtn");
+const confirmScheduleImportBtn = document.querySelector("#confirmScheduleImportBtn");
+const cancelScheduleImportBtn = document.querySelector("#cancelScheduleImportBtn");
+const scheduleFileMeta = document.querySelector("#scheduleFileMeta");
+const scheduleImportPreview = document.querySelector("#scheduleImportPreview");
+const schedulePreviewBody = document.querySelector("#schedulePreviewBody");
+const scheduleIssueSummary = document.querySelector("#scheduleIssueSummary");
 const scheduleImportNotice = document.querySelector("#scheduleImportNotice");
 const reviewNotice = document.querySelector("#reviewNotice");
 
@@ -24,6 +32,8 @@ let currentQr = null;
 let displayUrl = "";
 let countdownTimer = null;
 let summaryTimer = null;
+let currentScheduleCount = 0;
+let pendingScheduleImport = null;
 
 navButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -131,6 +141,7 @@ async function refreshData() {
 }
 
 function renderSummary(summary, checkins, schedules, storage) {
+  currentScheduleCount = schedules.length;
   document.querySelector("#metricSchedules").textContent = summary.totalSchedules;
   document.querySelector("#metricCheckins").textContent = summary.totalCheckins;
   document.querySelector("#metricNormal").textContent = summary.counts["正常"] || 0;
@@ -282,6 +293,106 @@ async function importSchedules() {
   }
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(new Error("无法读取该文件")));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function previewScheduleFile() {
+  const file = scheduleFile.files?.[0];
+  if (!file) return;
+  if (file.size > 4 * 1024 * 1024) {
+    scheduleImportNotice.textContent = "文件不能超过 4 MB";
+    return;
+  }
+
+  analyzeScheduleFileBtn.disabled = true;
+  confirmScheduleImportBtn.disabled = true;
+  scheduleImportNotice.textContent = "正在自动识别表格...";
+  try {
+    const fileDataUrl = await readFileAsDataUrl(file);
+    const result = await fetchJson("/api/schedule-import/preview", {
+      method: "POST",
+      body: JSON.stringify({ fileName: file.name, fileDataUrl })
+    });
+    pendingScheduleImport = result.schedules;
+    renderScheduleImportPreview(result);
+    scheduleImportNotice.textContent = result.count
+      ? `已识别 ${result.count} 条固定排班，请确认后归档`
+      : "没有找到字段完整的固定排班，请查看识别结果";
+  } catch (error) {
+    pendingScheduleImport = null;
+    scheduleImportPreview.classList.add("hidden");
+    if (!handleAuthError(error)) scheduleImportNotice.textContent = error.message;
+  } finally {
+    analyzeScheduleFileBtn.disabled = false;
+  }
+}
+
+function renderScheduleImportPreview(result) {
+  scheduleImportPreview.classList.remove("hidden");
+  document.querySelector("#schedulePreviewCount").textContent = result.count;
+  document.querySelector("#schedulePreviewPeople").textContent = result.peopleCount;
+  document.querySelector("#schedulePreviewIssues").textContent = result.issueCount;
+  document.querySelector("#schedulePreviewDutyWarnings").textContent = result.notTwoDuties?.length || 0;
+  document.querySelector("#schedulePreviewSource").textContent = result.fileName;
+  confirmScheduleImportBtn.disabled = !result.count;
+
+  document.querySelector("#scheduleSheetSummary").innerHTML = result.sheetSummaries.map((sheet) => `
+    <div><strong>${escapeHtml(sheet.sheetName)}</strong><span>${escapeHtml(sheet.status)}</span></div>
+  `).join("");
+
+  const shownIssues = result.issues || [];
+  scheduleIssueSummary.classList.toggle("hidden", !result.issueCount);
+  scheduleIssueSummary.innerHTML = result.issueCount ? `
+    <strong>${result.issueCount} 行未导入</strong>
+    <ul>${shownIssues.slice(0, 8).map((issue) => `<li>${escapeHtml(issue.sheetName)} 第 ${issue.rowNumber} 行：${escapeHtml(issue.reason)}</li>`).join("")}</ul>
+    ${result.ignoredIssueCount ? `<span>另有 ${result.ignoredIssueCount} 行未展开</span>` : ""}
+  ` : "";
+
+  const previewRows = (result.schedules || []).slice(0, 100);
+  schedulePreviewBody.innerHTML = previewRows.length ? previewRows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.center)}</td><td>第${escapeHtml(row.week)}周</td>
+      <td>${escapeHtml(row.weekday)}</td><td>${escapeHtml(row.shift)}</td>
+      <td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.position || "-")}</td><td>${escapeHtml(row.phone || "-")}</td>
+    </tr>
+  `).join("") : "<tr><td colspan=\"7\" class=\"empty-cell\">没有可导入的固定排班</td></tr>";
+}
+
+function resetScheduleImport() {
+  pendingScheduleImport = null;
+  scheduleFile.value = "";
+  scheduleFileMeta.textContent = "尚未选择文件";
+  analyzeScheduleFileBtn.disabled = true;
+  confirmScheduleImportBtn.disabled = true;
+  scheduleImportPreview.classList.add("hidden");
+}
+
+async function confirmScheduleImport() {
+  if (!pendingScheduleImport?.length) return;
+  if (currentScheduleCount && !window.confirm(`将覆盖当前 ${currentScheduleCount} 条固定排班，是否继续？`)) return;
+  confirmScheduleImportBtn.disabled = true;
+  scheduleImportNotice.textContent = "正在归档固定排班...";
+  try {
+    const result = await fetchJson("/api/schedules", {
+      method: "POST",
+      body: JSON.stringify({ schedules: pendingScheduleImport })
+    });
+    const warning = result.notTwoDuties?.length ? `；${result.notTwoDuties.length} 位同学的排班次数不是 2 次` : "";
+    scheduleImportNotice.textContent = `已归档 ${result.count} 条固定排班${warning}`;
+    resetScheduleImport();
+    await refreshData();
+  } catch (error) {
+    if (!handleAuthError(error)) scheduleImportNotice.textContent = error.message;
+    confirmScheduleImportBtn.disabled = false;
+  }
+}
+
 async function startAdmin() {
   showAdmin();
   await Promise.all([refreshQr(), refreshData(), refreshDisplayUrl()]).catch((error) => {
@@ -337,6 +448,18 @@ copyDisplayLinkBtn.addEventListener("click", async () => {
 });
 
 importSchedulesBtn.addEventListener("click", importSchedules);
+scheduleFile.addEventListener("change", () => {
+  const file = scheduleFile.files?.[0];
+  scheduleFileMeta.textContent = file ? `${file.name} · ${(file.size / 1024).toFixed(1)} KB` : "尚未选择文件";
+  analyzeScheduleFileBtn.disabled = !file;
+  if (file) previewScheduleFile();
+});
+analyzeScheduleFileBtn.addEventListener("click", previewScheduleFile);
+confirmScheduleImportBtn.addEventListener("click", confirmScheduleImport);
+cancelScheduleImportBtn.addEventListener("click", () => {
+  resetScheduleImport();
+  scheduleImportNotice.textContent = "";
+});
 refreshDataBtn.addEventListener("click", () => refreshData().catch((error) => !handleAuthError(error) && showReviewNotice(error.message, true)));
 logoutBtn.addEventListener("click", async () => {
   await fetchJson("/api/admin-logout", { method: "POST" }).catch(() => {});

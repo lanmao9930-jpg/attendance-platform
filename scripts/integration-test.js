@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const XLSX = require("xlsx");
 
 const baseUrl = process.env.TEST_BASE_URL || "http://localhost:8789";
 let adminCookie = "";
@@ -17,6 +18,19 @@ async function request(path, options = {}, useAdmin = false) {
 
 function json(value) {
   return JSON.stringify(value);
+}
+
+function scheduleWorkbookDataUrl() {
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    ["\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3\u56fa\u5b9a\u6392\u73ed"],
+    [],
+    ["\u5468\u6b21", "\u661f\u671f", "\u8282\u6b21", "\u503c\u73ed\u4eba\u5458", "\u804c\u4f4d", "\u8054\u7cfb\u7535\u8bdd"],
+    ["\u7b2c14\u5468", "\u661f\u671f\u4e00", "\u4e00\u4e8c\u8282", "\u6d4b\u8bd5\u540c\u5b66", "\u5b66\u751f\u52a9\u7406", "13800000000"]
+  ]);
+  XLSX.utils.book_append_sheet(workbook, worksheet, "\u6392\u73ed\u5bfc\u5165");
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  return `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${buffer.toString("base64")}`;
 }
 
 async function run() {
@@ -61,19 +75,20 @@ async function run() {
   assert.equal(adminDisplay.response.status, 200);
   assert.match(adminDisplay.body.displayUrl, /\/display\?key=display-test-key$/);
 
-  const imported = await request("/api/schedules", {
+  const preview = await request("/api/schedule-import/preview", {
     method: "POST",
     body: json({
-      schedules: [{
-        center: "\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3",
-        week: "\u7b2c14\u5468",
-        weekday: "\u661f\u671f\u4e00",
-        shift: "\u4e00\u4e8c\u8282",
-        name: "\u6d4b\u8bd5\u540c\u5b66",
-        position: "\u5b66\u751f\u52a9\u7406",
-        phone: "13800000000"
-      }]
+      fileName: "\u817e\u8baf\u6587\u6863\u56fa\u5b9a\u6392\u73ed.xlsx",
+      fileDataUrl: scheduleWorkbookDataUrl()
     })
+  }, true);
+  assert.equal(preview.response.status, 200);
+  assert.equal(preview.body.count, 1);
+  assert.equal(preview.body.issueCount, 0);
+
+  const imported = await request("/api/schedules", {
+    method: "POST",
+    body: json({ schedules: preview.body.schedules })
   }, true);
   assert.equal(imported.response.status, 200);
   assert.equal(imported.body.count, 1);

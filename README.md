@@ -49,6 +49,7 @@ npm start
 - 管理端：`https://attendance-platform-d1b99a89a6e3.service.tcloudbase.com/admin`
 - 现场屏：管理员登录后点击“打开现场屏”或“复制现场屏地址”
 - 学生端：只通过现场动态二维码进入
+- 固定排班：管理端可直接上传 `.xlsx`、`.xls` 或 `.csv`，自动识别后预览确认
 
 正式管理员口令由随机值生成，只保存在被 Git 忽略的 `.env.local`，不要改回简单数字口令。
 

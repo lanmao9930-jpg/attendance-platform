@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const XLSX = require("xlsx");
 const { centers, dutyTypes, positions, shifts, weekdays } = require("../lib/constants");
 
 const baseUrl = process.env.CLOUDBASE_BASE_URL || "https://attendance-platform-d1b99a89a6e3.service.tcloudbase.com";
@@ -15,6 +16,20 @@ async function request(path, options = {}, useAdmin = false) {
   const contentType = response.headers.get("content-type") || "";
   const body = contentType.includes("application/json") ? await response.json() : await response.text();
   return { response, body };
+}
+
+function scheduleWorkbookDataUrl() {
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    ["\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3\u56fa\u5b9a\u6392\u73ed"],
+    [],
+    ["\u5468\u6b21", "\u661f\u671f", "\u8282\u6b21", "\u503c\u73ed\u4eba\u5458"],
+    ["\u7b2c3\u5468", "\u661f\u671f\u4e8c", "\u4e00\u4e8c\u8282", "CloudBase import preview"],
+    ["\u7b2c8\u5468", "\u661f\u671f\u4e94", "\u4e94\u516d\u8282", "CloudBase import preview"]
+  ]);
+  XLSX.utils.book_append_sheet(workbook, worksheet, "\u56fa\u5b9a\u6392\u73ed");
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  return `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${buffer.toString("base64")}`;
 }
 
 async function run() {
@@ -53,6 +68,15 @@ async function run() {
   assert.ok(Array.isArray(checkins.body.checkins));
   assert.match(displayUrl.body.displayUrl, /\/display\?key=/);
   assert.match(qr.body.checkinUrl, /\/student\?token=/);
+
+  const importPreview = await request("/api/schedule-import/preview", {
+    method: "POST",
+    body: JSON.stringify({ fileName: "cloudbase-import-preview.xlsx", fileDataUrl: scheduleWorkbookDataUrl() })
+  }, true);
+  assert.equal(importPreview.response.status, 200);
+  assert.equal(importPreview.body.count, 2);
+  assert.equal(importPreview.body.peopleCount, 1);
+  assert.equal(importPreview.body.issueCount, 0);
 
   const studentSession = await request("/api/open-checkin", {
     method: "POST",
@@ -139,6 +163,7 @@ async function run() {
     adminLogin: true,
     displayProtected: true,
     studentSession: true,
+    scheduleImportPreview: true,
     scheduleCount: schedules.body.schedules.length,
     checkinCount: checkins.body.checkins.length,
     writeTest
