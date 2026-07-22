@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const XLSX = require("xlsx");
 const { centers, dutyTypes, positions, shifts, weekdays } = require("../lib/constants");
 
@@ -24,11 +26,16 @@ function scheduleWorkbookDataUrl() {
     ["\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3\u56fa\u5b9a\u6392\u73ed"],
     [],
     ["\u5468\u6b21", "\u661f\u671f", "\u8282\u6b21", "\u503c\u73ed\u4eba\u5458"],
-    ["\u7b2c3\u5468", "\u661f\u671f\u4e8c", "\u4e00\u4e8c\u8282", "CloudBase import preview"],
-    ["\u7b2c8\u5468", "\u661f\u671f\u4e94", "\u4e94\u516d\u8282", "CloudBase import preview"]
+    ["\u7b2c3\u5468", "\u661f\u671f\u4e8c", "\u4e00\u4e8c\u8282", "\u6d4b\u8bd5\u540c\u5b66"],
+    ["\u7b2c8\u5468", "\u661f\u671f\u4e94", "\u4e94\u516d\u8282", "\u6d4b\u8bd5\u540c\u5b66"]
   ]);
   XLSX.utils.book_append_sheet(workbook, worksheet, "\u56fa\u5b9a\u6392\u73ed");
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  return `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${buffer.toString("base64")}`;
+}
+
+function workbookFileDataUrl(filePath) {
+  const buffer = fs.readFileSync(filePath);
   return `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${buffer.toString("base64")}`;
 }
 
@@ -74,15 +81,40 @@ async function run() {
     body: JSON.stringify({ fileName: "cloudbase-import-preview.xlsx", fileDataUrl: scheduleWorkbookDataUrl() })
   }, true);
   assert.equal(importPreview.response.status, 200);
-  assert.equal(importPreview.body.count, 2);
-  assert.equal(importPreview.body.peopleCount, 1);
-  assert.equal(importPreview.body.issueCount, 0);
+  const importPreviewMessage = JSON.stringify(importPreview.body);
+  assert.equal(importPreview.body.count, 2, importPreviewMessage);
+  assert.equal(importPreview.body.peopleCount, 1, importPreviewMessage);
+  assert.equal(importPreview.body.issueCount, 0, importPreviewMessage);
 
   const studentSession = await request("/api/open-checkin", {
     method: "POST",
     body: JSON.stringify({ token: qr.body.token })
   });
   assert.equal(studentSession.response.status, 200);
+
+  let actualWorkbookPreview = null;
+  const workbookPath = process.env.CLOUDBASE_SCHEDULE_WORKBOOK;
+  if (workbookPath) {
+    const actualPreview = await request("/api/schedule-import/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        fileName: path.basename(workbookPath),
+        fileDataUrl: workbookFileDataUrl(workbookPath)
+      })
+    }, true);
+    const actualPreviewMessage = JSON.stringify(actualPreview.body);
+    assert.equal(actualPreview.response.status, 200, actualPreviewMessage);
+    assert.equal(actualPreview.body.count, 494, actualPreviewMessage);
+    assert.equal(actualPreview.body.peopleCount, 256, actualPreviewMessage);
+    assert.equal(actualPreview.body.issueCount, 0, actualPreviewMessage);
+    assert.equal(actualPreview.body.sheetSummaries.length, 12, actualPreviewMessage);
+    actualWorkbookPreview = {
+      scheduleCount: actualPreview.body.count,
+      peopleCount: actualPreview.body.peopleCount,
+      sheetCount: actualPreview.body.sheetSummaries.length,
+      issueCount: actualPreview.body.issueCount
+    };
+  }
 
   let writeTest = null;
   if (process.env.CLOUDBASE_WRITE_TEST === "1") {
@@ -164,6 +196,7 @@ async function run() {
     displayProtected: true,
     studentSession: true,
     scheduleImportPreview: true,
+    actualWorkbookPreview,
     scheduleCount: schedules.body.schedules.length,
     checkinCount: checkins.body.checkins.length,
     writeTest
