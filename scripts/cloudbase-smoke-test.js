@@ -73,8 +73,19 @@ async function run() {
   assert.equal(storage.body.mode, "cloudbase");
   assert.ok(Array.isArray(schedules.body.schedules));
   assert.ok(Array.isArray(checkins.body.checkins));
+  assert.ok(checkins.body.checkins.every((record) => ["已匹配", "异常"].includes(record.matchStatus)));
   assert.match(displayUrl.body.displayUrl, /\/display\?key=/);
   assert.match(qr.body.checkinUrl, /\/student\?token=/);
+
+  const sampleRecord = checkins.body.checkins[0];
+  const assessmentWeek = sampleRecord?.week || 1;
+  const assessmentCenter = sampleRecord?.center || "";
+  const assessmentQuery = new URLSearchParams({ week: String(assessmentWeek) });
+  if (assessmentCenter) assessmentQuery.set("center", assessmentCenter);
+  const automaticAssessment = await request(`/api/summary?${assessmentQuery.toString()}`, {}, true);
+  assert.equal(automaticAssessment.response.status, 200);
+  assert.ok(Array.isArray(automaticAssessment.body.rows));
+  assert.ok(Array.isArray(automaticAssessment.body.unmatched));
 
   const importPreview = await request("/api/schedule-import/preview", {
     method: "POST",
@@ -199,6 +210,12 @@ async function run() {
     actualWorkbookPreview,
     scheduleCount: schedules.body.schedules.length,
     checkinCount: checkins.body.checkins.length,
+    automaticAssessment: {
+      week: assessmentWeek,
+      center: assessmentCenter,
+      scheduleRows: automaticAssessment.body.rows.length,
+      unmatchedRecords: automaticAssessment.body.unmatched.length
+    },
     writeTest
   }));
 }
