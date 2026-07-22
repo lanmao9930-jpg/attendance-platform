@@ -20,6 +20,8 @@
         "QR_SECRET": "{{env.QR_SECRET}}"
       },
       "ignore": [
+        ".env",
+        ".env.*",
         ".git",
         ".git/**/*",
         ".test-data",
