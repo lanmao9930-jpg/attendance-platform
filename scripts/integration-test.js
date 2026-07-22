@@ -128,6 +128,21 @@ async function run() {
   assert.equal(signIn.response.status, 200);
   assert.equal(signOut.response.status, 200);
 
+  const mismatchCheckin = await request("/api/checkins", {
+    method: "POST",
+    body: json({ ...studentRecord, weekday: "\u661f\u671f\u4e8c", attendanceType: "\u7b7e\u5230" })
+  });
+  assert.equal(mismatchCheckin.response.status, 200);
+
+  const rawCheckins = await request("/api/checkins", {}, true);
+  const mismatchRaw = rawCheckins.body.checkins.find((record) => record.id === mismatchCheckin.body.record.id);
+  assert.equal(mismatchRaw.matchStatus, "\u5f02\u5e38");
+  assert.match(mismatchRaw.matchReason, /\u661f\u671f\u4e0e\u56fa\u5b9a\u6392\u73ed\u4e0d\u4e00\u81f4/);
+
+  const automaticSummary = await request("/api/summary?week=14&center=\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3", {}, true);
+  assert.equal(automaticSummary.body.unmatched.length, 1);
+  assert.equal(automaticSummary.body.unmatched[0].status, "\u5f02\u5e38");
+
   const rejectedReview = await request("/api/reviews", {
     method: "POST",
     body: json({ scheduleId: imported.body.schedules[0].id, status: "\u8c03\u73ed", remark: "" })
@@ -154,6 +169,7 @@ async function run() {
     displayUrlProtected: /display\?key=display-test-key$/.test(adminDisplay.body.displayUrl),
     importedSchedules: imported.body.count,
     partialCenterTotal: partialCenterUpdate.body.count,
+    unmatchedStatus: mismatchRaw.matchStatus,
     finalStatus: summary.body.rows[0].status,
     photoContentType: photoResult.contentType
   }));

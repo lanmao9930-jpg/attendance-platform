@@ -490,7 +490,57 @@ th {
 }
 
 .table-wrap .review-remark {
-  min-width: 180px;
+  min-width: 220px;
+}
+
+.review-row-attention td,
+.record-row-attention td {
+  background: #fff1f2;
+  border-bottom-color: #fecdd3;
+}
+
+.review-row-attention td:first-child,
+.record-row-attention td:first-child {
+  box-shadow: inset 3px 0 0 #dc2626;
+}
+
+.alert-name {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.review-reason {
+  min-width: 320px;
+  max-width: 440px;
+  white-space: normal;
+}
+
+.review-reason strong,
+.system-reason,
+.status-source,
+.record-match span {
+  display: block;
+}
+
+.system-reason,
+.status-source,
+.record-match span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.review-controls {
+  display: grid;
+  grid-template-columns: minmax(132px, 0.7fr) minmax(220px, 1.3fr);
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.record-match {
+  max-width: 360px;
+  white-space: normal;
 }
 
 tr:last-child td {
@@ -524,6 +574,12 @@ tr:last-child td {
 }
 
 .status.miss {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.status.error,
+.status.pending {
   color: #991b1b;
   background: #fee2e2;
 }

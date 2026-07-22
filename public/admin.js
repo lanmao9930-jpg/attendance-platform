@@ -152,7 +152,7 @@ function renderSummary(summary, checkins, schedules, storage) {
   document.querySelector("#metricSchedules").textContent = summary.totalSchedules;
   document.querySelector("#metricCheckins").textContent = summary.totalCheckins;
   document.querySelector("#metricNormal").textContent = summary.counts["正常"] || 0;
-  document.querySelector("#metricAbnormal").textContent = summary.totalSchedules - (summary.counts["正常"] || 0);
+  document.querySelector("#metricAbnormal").textContent = summary.totalSchedules - (summary.counts["正常"] || 0) + (summary.unmatched?.length || 0);
   document.querySelector("#scheduleCount").textContent = schedules.length;
   document.querySelector("#checkinCount").textContent = checkins.length;
   const storageLabels = { cloudbase: "CloudBase 云数据库与云存储", "vercel-blob": "Vercel Blob", "local-json": "本地预览" };
@@ -163,7 +163,7 @@ function renderSummary(summary, checkins, schedules, storage) {
   document.querySelector("#scheduleTableCount").textContent = `${schedules.length} 条`;
 
   renderSchedules(schedules);
-  renderReviews(summary.rows);
+  renderReviews(summary.rows, summary.unmatched || []);
   renderRecords(checkins);
 }
 
@@ -179,21 +179,52 @@ function renderSchedules(schedules) {
 }
 
 function statusOptions(selected) {
-  return attendanceStatuses.map((status) => `<option value="${status}"${status === selected ? " selected" : ""}>${status}</option>`).join("");
+  const placeholder = `<option value=""${selected ? "" : " selected"} disabled>选择复核结果</option>`;
+  return placeholder + attendanceStatuses.map((status) => `<option value="${status}"${status === selected ? " selected" : ""}>${status}</option>`).join("");
 }
 
-function renderReviews(rows) {
+function statusClass(status) {
+  return ({ 正常: "ok", 调班: "swap", 迟到: "late", 缺勤: "miss", 异常: "error", 待核查: "pending" })[status] || "ok";
+}
+
+function statusBadge(status, source = "") {
+  return `<span class="status ${statusClass(status)}">${escapeHtml(status)}</span>${source ? `<span class="status-source">${escapeHtml(source)}</span>` : ""}`;
+}
+
+function reviewFields(row) {
+  if (!row.reviewable) return `<span class="muted">${escapeHtml(row.progress || "系统已自动归档")}</span>`;
+  return `
+    <div class="review-controls">
+      <select class="review-status" aria-label="${escapeHtml(row.name)} 的人工复核结果">${statusOptions(row.reviewStatus)}</select>
+      <input class="review-remark" value="${escapeHtml(row.reviewRemark)}" placeholder="填写调班、缺勤或更正说明" aria-label="${escapeHtml(row.name)} 的复核备注">
+    </div>
+  `;
+}
+
+function renderReviews(rows, unmatched) {
   const body = document.querySelector("#reviewBody");
-  body.innerHTML = rows.length ? rows.map((row) => `
-    <tr data-schedule-id="${escapeHtml(row.id)}">
+  const scheduleRows = rows.map((row) => `
+    <tr data-schedule-id="${escapeHtml(row.id)}" class="${row.needsReview ? "review-row-attention" : ""}">
       <td>${escapeHtml(row.center)}</td><td>第${escapeHtml(row.week)}周</td><td>${escapeHtml(row.weekday)}</td><td>${escapeHtml(row.shift)}</td><td>${escapeHtml(row.name)}</td>
       <td>${formatTime(row.signInTime)}</td><td>${formatTime(row.signOutTime)}</td>
       <td>${row.photoRecordId ? `<a class="text-link" href="/api/photo?id=${encodeURIComponent(row.photoRecordId)}" target="_blank" rel="noreferrer">查看</a>` : "-"}</td>
-      <td><select class="review-status" aria-label="${escapeHtml(row.name)} 的考勤状态">${statusOptions(row.status)}</select></td>
-      <td><input class="review-remark" value="${escapeHtml(row.reviewRemark)}" placeholder="${escapeHtml(row.reason || "备注")}" aria-label="${escapeHtml(row.name)} 的备注"></td>
-      <td><button class="button secondary save-review-btn" type="button">保存</button></td>
+      <td>${statusBadge(row.status, row.statusSource)}</td>
+      <td class="review-reason"><strong>${escapeHtml(row.reason)}</strong>${row.reviewStatus ? `<span class="system-reason">系统初判：${escapeHtml(row.systemStatus)}，${escapeHtml(row.systemReason)}</span>` : ""}${reviewFields(row)}</td>
+      <td>${row.reviewable ? `<button class="button secondary save-review-btn" type="button">保存复核</button>` : "-"}</td>
     </tr>
-  `).join("") : "<tr><td colspan=\"11\" class=\"empty-cell\">导入固定排班后显示审核记录</td></tr>";
+  `);
+  const unmatchedRows = unmatched.map((record) => `
+    <tr class="review-row-attention unmatched-row">
+      <td>${escapeHtml(record.center)}</td><td>第${escapeHtml(record.week)}周</td><td>${escapeHtml(record.weekday)}</td><td>${escapeHtml((record.shifts || []).join("、"))}</td><td class="alert-name">${escapeHtml(record.name)}</td>
+      <td>${record.attendanceType === "签到" ? formatTime(record.createdAt) : "-"}</td><td>${record.attendanceType === "签退" ? formatTime(record.createdAt) : "-"}</td>
+      <td>${record.photoStored ? `<a class="text-link" href="/api/photo?id=${encodeURIComponent(record.id)}" target="_blank" rel="noreferrer">查看</a>` : "-"}</td>
+      <td>${statusBadge("异常", "系统初判")}</td>
+      <td class="review-reason"><strong>${escapeHtml(record.reason)}</strong><span class="system-reason">该记录未匹配固定排班，请核对填写错误或调班情况。</span></td><td>-</td>
+    </tr>
+  `);
+  body.innerHTML = scheduleRows.length || unmatchedRows.length
+    ? [...unmatchedRows, ...scheduleRows].join("")
+    : "<tr><td colspan=\"11\" class=\"empty-cell\">导入固定排班后显示系统初判</td></tr>";
 
   body.querySelectorAll(".save-review-btn").forEach((button) => {
     button.addEventListener("click", () => saveReview(button));
@@ -203,13 +234,14 @@ function renderReviews(rows) {
 function renderRecords(records) {
   const body = document.querySelector("#recordsBody");
   body.innerHTML = records.length ? records.map((record) => `
-    <tr>
+    <tr class="${record.matchStatus === "异常" ? "record-row-attention" : ""}">
       <td>${formatTime(record.createdAt)}</td><td>${escapeHtml(record.name)}</td><td>${escapeHtml(record.center)}</td>
       <td>${record.week ? `第${escapeHtml(record.week)}周` : "-"}</td><td>${escapeHtml(record.weekday)}</td><td>${escapeHtml((record.shifts || []).join("、"))}</td>
       <td>${escapeHtml(record.dutyType || "-")}</td><td>${escapeHtml(record.attendanceType || "-")}</td>
       <td>${record.photoStored ? `<a class="text-link" href="/api/photo?id=${encodeURIComponent(record.id)}" target="_blank" rel="noreferrer">查看</a>` : "-"}</td>
+      <td class="record-match">${record.matchStatus === "异常" ? statusBadge("异常") : statusBadge("已匹配")}<span>${escapeHtml(record.matchReason || "")}</span></td>
     </tr>
-  `).join("") : "<tr><td colspan=\"9\" class=\"empty-cell\">暂无原始记录</td></tr>";
+  `).join("") : "<tr><td colspan=\"10\" class=\"empty-cell\">暂无原始记录</td></tr>";
 }
 
 async function saveReview(button) {
@@ -217,6 +249,10 @@ async function saveReview(button) {
   const scheduleId = row.dataset.scheduleId;
   const status = row.querySelector(".review-status").value;
   const remark = row.querySelector(".review-remark").value.trim();
+  if (!status) {
+    showReviewNotice("请先选择人工复核结果", true);
+    return;
+  }
   button.disabled = true;
   showReviewNotice("");
   try {

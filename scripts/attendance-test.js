@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const { computeAttendance, findScheduleOccurrence } = require("../lib/attendance");
+const { shifts } = require("../lib/constants");
 
 const schedule = {
   id: "recurring-a",
@@ -14,52 +15,105 @@ const schedule = {
   phone: ""
 };
 
-const checkins = [
-  {
-    id: "in-3",
-    createdAt: "2026-03-02T00:00:00.000Z",
+function checkin(id, createdAt, attendanceType, overrides = {}) {
+  return {
+    id,
+    createdAt,
     center: schedule.center,
     week: 3,
     weekday: schedule.weekday,
     shifts: [schedule.shift],
     name: schedule.name,
-    attendanceType: "签到"
-  },
-  {
-    id: "out-3",
-    createdAt: "2026-03-02T02:00:00.000Z",
-    center: schedule.center,
-    week: 3,
-    weekday: schedule.weekday,
-    shifts: [schedule.shift],
-    name: schedule.name,
-    attendanceType: "签退"
-  }
-];
+    attendanceType,
+    ...overrides
+  };
+}
 
-const weekThree = computeAttendance({ schedules: [schedule], checkins, reviews: [] }, { week: 3 });
-assert.equal(weekThree.rows.length, 1);
-assert.equal(weekThree.rows[0].id, "recurring-a__week_3");
-assert.equal(weekThree.rows[0].status, "正常");
+function summary(checkins, now = "2026-03-02T03:00:00.000Z", reviews = []) {
+  return computeAttendance({ schedules: [schedule], checkins, reviews }, { week: 3, now });
+}
 
-const weekFour = computeAttendance({ schedules: [schedule], checkins, reviews: [] }, { week: 4 });
-assert.equal(weekFour.rows.length, 0);
+assert.deepEqual(shifts.map(({ start, end }) => [start, end]), [
+  ["08:30", "10:10"],
+  ["10:30", "12:10"],
+  ["14:30", "16:10"],
+  ["16:30", "18:10"]
+]);
 
-const weekFive = computeAttendance({ schedules: [schedule], checkins, reviews: [] }, { week: 5 });
-assert.equal(weekFive.rows.length, 1);
-assert.equal(weekFive.rows[0].status, "缺勤");
+const onTime = summary([
+  checkin("in-on-time", "2026-03-02T00:30:00.000Z", "签到"),
+  checkin("out-on-time", "2026-03-02T02:10:00.000Z", "签退")
+]);
+assert.equal(onTime.rows[0].status, "正常");
+assert.equal(onTime.rows[0].needsReview, false);
+assert.match(onTime.rows[0].reason, /08:30/);
 
-const reviewed = computeAttendance({
-  schedules: [schedule],
-  checkins,
-  reviews: [{ scheduleId: "recurring-a__week_3", status: "调班", remark: "已核验" }]
-}, { week: 3 });
+const late = summary([
+  checkin("in-late", "2026-03-02T00:31:00.000Z", "签到"),
+  checkin("out-late", "2026-03-02T02:10:00.000Z", "签退")
+]);
+assert.equal(late.rows[0].status, "迟到");
+assert.equal(late.rows[0].needsReview, false);
+
+const waitingForSignOut = summary([
+  checkin("in-waiting", "2026-03-02T00:29:00.000Z", "签到")
+], "2026-03-02T01:00:00.000Z");
+assert.equal(waitingForSignOut.rows[0].status, "正常");
+assert.equal(waitingForSignOut.rows[0].progress, "待签退");
+assert.equal(waitingForSignOut.rows[0].needsReview, false);
+
+const missingSignOut = summary([
+  checkin("in-missing-out", "2026-03-02T00:29:00.000Z", "签到")
+], "2026-03-02T02:11:00.000Z");
+assert.equal(missingSignOut.rows[0].status, "异常");
+assert.equal(missingSignOut.rows[0].needsReview, true);
+assert.match(missingSignOut.rows[0].reason, /未找到签退/);
+
+const earlySignOut = summary([
+  checkin("in-early-out", "2026-03-02T00:29:00.000Z", "签到"),
+  checkin("out-early", "2026-03-02T02:00:00.000Z", "签退")
+]);
+assert.equal(earlySignOut.rows[0].status, "异常");
+assert.match(earlySignOut.rows[0].reason, /早于 10:10/);
+
+const signOutOnly = summary([
+  checkin("out-only", "2026-03-02T02:10:00.000Z", "签退")
+]);
+assert.equal(signOutOnly.rows[0].status, "异常");
+assert.match(signOutOnly.rows[0].reason, /没有签到/);
+
+const noRecords = summary([]);
+assert.equal(noRecords.rows[0].status, "待核查");
+assert.equal(noRecords.rows[0].needsReview, true);
+assert.match(noRecords.rows[0].reason, /缺勤、调班或填写错误/);
+
+const mismatch = summary([
+  checkin("wrong-weekday", "2026-03-03T00:29:00.000Z", "签到", { weekday: "星期二" })
+]);
+assert.equal(mismatch.rows[0].status, "待核查");
+assert.equal(mismatch.unmatched.length, 1);
+assert.equal(mismatch.unmatched[0].status, "异常");
+assert.match(mismatch.unmatched[0].reason, /星期与固定排班不一致/);
+
+const reviewed = summary([], undefined, [{
+  scheduleId: "recurring-a__week_3",
+  status: "调班",
+  remark: "主管已确认与同学互换值班"
+}]);
 assert.equal(reviewed.rows[0].status, "调班");
+assert.equal(reviewed.rows[0].systemStatus, "待核查");
+assert.equal(reviewed.rows[0].statusSource, "人工复核");
 assert.equal(findScheduleOccurrence([schedule], "recurring-a__week_3").week, 3);
 assert.equal(findScheduleOccurrence([schedule], "recurring-a__week_4"), null);
 
+const weekFour = computeAttendance({ schedules: [schedule], checkins: [], reviews: [] }, { week: 4 });
+assert.equal(weekFour.rows.length, 0);
+
 console.log(JSON.stringify({
-  recurringMatchedWeek: weekThree.rows[0].week,
-  inactiveWeekRows: weekFour.rows.length,
+  onTime: onTime.rows[0].status,
+  oneMinuteLate: late.rows[0].status,
+  missingSignOut: missingSignOut.rows[0].status,
+  noRecords: noRecords.rows[0].status,
+  mismatch: mismatch.unmatched[0].status,
   reviewedStatus: reviewed.rows[0].status
 }));
