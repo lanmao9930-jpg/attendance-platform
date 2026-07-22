@@ -93,6 +93,24 @@ async function run() {
   assert.equal(imported.response.status, 200);
   assert.equal(imported.body.count, 1);
 
+  const partialCenterUpdate = await request("/api/schedules", {
+    method: "POST",
+    body: json({
+      mode: "replace-centers",
+      schedules: [{
+        center: "\u5927\u6570\u636e\u4e2d\u5fc3",
+        week: 14,
+        weekday: "\u661f\u671f\u4e8c",
+        shift: "\u4e09\u56db\u8282",
+        name: "\u4fdd\u7559\u6d4b\u8bd5"
+      }]
+    })
+  }, true);
+  assert.equal(partialCenterUpdate.response.status, 200);
+  assert.equal(partialCenterUpdate.body.importedCount, 1);
+  assert.equal(partialCenterUpdate.body.count, 2);
+  assert.deepEqual(partialCenterUpdate.body.replacedCenters, ["\u5927\u6570\u636e\u4e2d\u5fc3"]);
+
   const photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl7P+UAAAAASUVORK5CYII=";
   const studentRecord = {
     session: studentSession.body.session,
@@ -135,6 +153,7 @@ async function run() {
     storage: health.body.storageMode,
     displayUrlProtected: /display\?key=display-test-key$/.test(adminDisplay.body.displayUrl),
     importedSchedules: imported.body.count,
+    partialCenterTotal: partialCenterUpdate.body.count,
     finalStatus: summary.body.rows[0].status,
     photoContentType: photoResult.contentType
   }));

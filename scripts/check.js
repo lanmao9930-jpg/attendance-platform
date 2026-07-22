@@ -8,6 +8,7 @@ const files = [
   "scripts/cloudbase-setup.js",
   "scripts/cloudbase-smoke-test.js",
   "scripts/schedule-import-test.js",
+  "scripts/attendance-test.js",
   "api/[...path].js",
   "lib/api.js",
   "lib/attendance.js",

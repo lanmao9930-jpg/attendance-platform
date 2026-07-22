@@ -26,8 +26,13 @@ const schedulePreviewBody = document.querySelector("#schedulePreviewBody");
 const scheduleIssueSummary = document.querySelector("#scheduleIssueSummary");
 const scheduleImportNotice = document.querySelector("#scheduleImportNotice");
 const reviewNotice = document.querySelector("#reviewNotice");
+const reviewWeek = document.querySelector("#reviewWeek");
+const reviewCenter = document.querySelector("#reviewCenter");
 
 const attendanceStatuses = ["正常", "调班", "迟到", "缺勤"];
+const centerOptions = ["主席团", "精英团", "行政事务中心", "大数据中心", "市场拓展中心", "视频运营中心", "宣讲招聘中心", "培训中心", "职研中心", "青创中心", "新媒体中心"];
+reviewWeek.innerHTML = Array.from({ length: 20 }, (_, index) => `<option value="${index + 1}">第${index + 1}周</option>`).join("");
+reviewCenter.innerHTML = `<option value="">全部中心</option>${centerOptions.map((center) => `<option value="${center}">${center}</option>`).join("")}`;
 let currentQr = null;
 let displayUrl = "";
 let countdownTimer = null;
@@ -131,8 +136,10 @@ function updateCountdown() {
 }
 
 async function refreshData() {
+  const summaryParams = new URLSearchParams({ week: reviewWeek.value || "1" });
+  if (reviewCenter.value) summaryParams.set("center", reviewCenter.value);
   const [summary, raw, schedules, storage] = await Promise.all([
-    fetchJson("/api/summary"),
+    fetchJson(`/api/summary?${summaryParams.toString()}`),
     fetchJson("/api/checkins"),
     fetchJson("/api/schedules"),
     fetchJson("/api/admin-storage")
@@ -146,11 +153,12 @@ function renderSummary(summary, checkins, schedules, storage) {
   document.querySelector("#metricCheckins").textContent = summary.totalCheckins;
   document.querySelector("#metricNormal").textContent = summary.counts["正常"] || 0;
   document.querySelector("#metricAbnormal").textContent = summary.totalSchedules - (summary.counts["正常"] || 0);
-  document.querySelector("#scheduleCount").textContent = summary.totalSchedules;
-  document.querySelector("#checkinCount").textContent = summary.totalCheckins;
+  document.querySelector("#scheduleCount").textContent = schedules.length;
+  document.querySelector("#checkinCount").textContent = checkins.length;
   const storageLabels = { cloudbase: "CloudBase 云数据库与云存储", "vercel-blob": "Vercel Blob", "local-json": "本地预览" };
   document.querySelector("#storageMode").textContent = storageLabels[storage.mode] || storage.mode;
-  document.querySelector("#summaryTime").textContent = `更新时间：${formatTime(summary.generatedAt)}`;
+  const centerLabel = summary.selectedCenter || "全部中心";
+  document.querySelector("#summaryTime").textContent = `${centerLabel} · 第${summary.selectedWeek || reviewWeek.value}周 · ${formatTime(summary.generatedAt)}`;
   document.querySelector("#recordsCount").textContent = `${checkins.length} 条`;
   document.querySelector("#scheduleTableCount").textContent = `${schedules.length} 条`;
 
@@ -163,7 +171,7 @@ function renderSchedules(schedules) {
   const body = document.querySelector("#scheduleBody");
   body.innerHTML = schedules.length ? schedules.map((row) => `
     <tr>
-      <td>${escapeHtml(row.center)}</td><td>第${escapeHtml(row.week)}周</td>
+      <td>${escapeHtml(row.center)}</td><td>${escapeHtml(row.weekLabel || `第${row.week}周`)}</td>
       <td>${escapeHtml(row.weekday)}</td><td>${escapeHtml(row.shift)}</td>
       <td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.position || "-")}</td><td>${escapeHtml(row.phone || "-")}</td>
     </tr>
@@ -323,7 +331,7 @@ async function previewScheduleFile() {
     renderScheduleImportPreview(result);
     scheduleImportNotice.textContent = result.count
       ? `已识别 ${result.count} 条固定排班，请确认后归档`
-      : "没有找到字段完整的固定排班，请查看识别结果";
+      : "没有识别到可导入的人员排班；不要求包含全部中心，请查看各工作表的识别结果";
   } catch (error) {
     pendingScheduleImport = null;
     scheduleImportPreview.classList.add("hidden");
@@ -357,7 +365,7 @@ function renderScheduleImportPreview(result) {
   const previewRows = (result.schedules || []).slice(0, 100);
   schedulePreviewBody.innerHTML = previewRows.length ? previewRows.map((row) => `
     <tr>
-      <td>${escapeHtml(row.center)}</td><td>第${escapeHtml(row.week)}周</td>
+      <td>${escapeHtml(row.center)}</td><td>${escapeHtml(row.weekLabel || `第${row.week}周`)}</td>
       <td>${escapeHtml(row.weekday)}</td><td>${escapeHtml(row.shift)}</td>
       <td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.position || "-")}</td><td>${escapeHtml(row.phone || "-")}</td>
     </tr>
@@ -375,16 +383,17 @@ function resetScheduleImport() {
 
 async function confirmScheduleImport() {
   if (!pendingScheduleImport?.length) return;
-  if (currentScheduleCount && !window.confirm(`将覆盖当前 ${currentScheduleCount} 条固定排班，是否继续？`)) return;
+  const importedCenters = [...new Set(pendingScheduleImport.map((row) => row.center))];
+  if (currentScheduleCount && !window.confirm(`将更新 ${importedCenters.join("、")} 的固定排班，其他中心保持不变，是否继续？`)) return;
   confirmScheduleImportBtn.disabled = true;
   scheduleImportNotice.textContent = "正在归档固定排班...";
   try {
     const result = await fetchJson("/api/schedules", {
       method: "POST",
-      body: JSON.stringify({ schedules: pendingScheduleImport })
+      body: JSON.stringify({ schedules: pendingScheduleImport, mode: "replace-centers" })
     });
     const warning = result.notTwoDuties?.length ? `；${result.notTwoDuties.length} 位同学的排班次数不是 2 次` : "";
-    scheduleImportNotice.textContent = `已归档 ${result.count} 条固定排班${warning}`;
+    scheduleImportNotice.textContent = `已更新 ${result.importedCount || pendingScheduleImport.length} 条固定排班，其他中心已保留${warning}`;
     resetScheduleImport();
     await refreshData();
   } catch (error) {
@@ -461,6 +470,8 @@ cancelScheduleImportBtn.addEventListener("click", () => {
   scheduleImportNotice.textContent = "";
 });
 refreshDataBtn.addEventListener("click", () => refreshData().catch((error) => !handleAuthError(error) && showReviewNotice(error.message, true)));
+reviewWeek.addEventListener("change", () => refreshData().catch((error) => !handleAuthError(error) && showReviewNotice(error.message, true)));
+reviewCenter.addEventListener("change", () => refreshData().catch((error) => !handleAuthError(error) && showReviewNotice(error.message, true)));
 logoutBtn.addEventListener("click", async () => {
   await fetchJson("/api/admin-logout", { method: "POST" }).catch(() => {});
   showLogin("已退出后台。");
