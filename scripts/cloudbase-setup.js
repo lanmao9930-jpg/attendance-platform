@@ -2,7 +2,7 @@ const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 
 const ENV_ID = "attendance-platform-d1b99a89a6e3";
-const collections = ["attendance_schedules", "attendance_reviews", "attendance_checkins"];
+const collections = ["attendance_schedules", "attendance_schedule_history", "attendance_reviews", "attendance_checkins"];
 
 function runTcb(args) {
   const command = process.platform === "win32"

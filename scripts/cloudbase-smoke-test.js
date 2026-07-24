@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const XLSX = require("xlsx");
-const { centers, dutyTypes, positions, shifts, weekdays } = require("../lib/constants");
+const { centers, dutyTypes, positions, shifts, studentPositions, weekdays } = require("../lib/constants");
 
 const baseUrl = process.env.CLOUDBASE_BASE_URL || "https://attendance-platform-d1b99a89a6e3.service.tcloudbase.com";
 const adminPassword = process.env.CLOUDBASE_ADMIN_PASSWORD;
@@ -73,7 +73,8 @@ async function run() {
   assert.equal(storage.body.mode, "cloudbase");
   assert.ok(Array.isArray(schedules.body.schedules));
   assert.ok(Array.isArray(checkins.body.checkins));
-  assert.ok(checkins.body.checkins.every((record) => ["已匹配", "异常"].includes(record.matchStatus)));
+  assert.ok(Array.isArray(schedules.body.batches));
+  assert.ok(checkins.body.checkins.every((record) => ["已匹配", "异常", "调班", "历史记录"].includes(record.matchStatus)));
   assert.match(displayUrl.body.displayUrl, /\/display\?key=/);
   assert.match(qr.body.checkinUrl, /\/student\?token=/);
 
@@ -102,6 +103,8 @@ async function run() {
     body: JSON.stringify({ token: qr.body.token })
   });
   assert.equal(studentSession.response.status, 200);
+  assert.deepEqual(studentSession.body.options.positions, studentPositions);
+  assert.deepEqual(studentSession.body.options.dutyTypes, ["正常", "调班"]);
 
   let actualWorkbookPreview = null;
   const workbookPath = process.env.CLOUDBASE_SCHEDULE_WORKBOOK;
@@ -210,6 +213,8 @@ async function run() {
     scheduleImportPreview: true,
     actualWorkbookPreview,
     scheduleCount: schedules.body.schedules.length,
+    totalStoredSchedules: schedules.body.totalStored,
+    scheduleBatches: schedules.body.batches.length,
     checkinCount: checkins.body.checkins.length,
     automaticAssessment: {
       week: assessmentWeek,
