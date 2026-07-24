@@ -5,7 +5,18 @@ const XLSX = require("xlsx");
 const { centers, dutyTypes, positions, shifts, studentPositions, weekdays } = require("../lib/constants");
 
 const baseUrl = process.env.CLOUDBASE_BASE_URL || "https://attendance-platform-d1b99a89a6e3.service.tcloudbase.com";
-const adminPassword = process.env.CLOUDBASE_ADMIN_PASSWORD;
+const localEnvPath = path.join(__dirname, "..", ".env.local");
+
+function localEnvValue(key) {
+  if (!fs.existsSync(localEnvPath)) return "";
+  const prefix = `${key}=`;
+  const line = fs.readFileSync(localEnvPath, "utf8")
+    .split(/\r?\n/)
+    .find((item) => item.startsWith(prefix));
+  return line ? line.slice(prefix.length).trim() : "";
+}
+
+const adminPassword = process.env.CLOUDBASE_ADMIN_PASSWORD || localEnvValue("ADMIN_PASSWORD");
 let adminCookie = "";
 
 async function request(path, options = {}, useAdmin = false) {

@@ -122,6 +122,62 @@ assert.equal(studentDeclaredSwap.rows[0].needsReview, false);
 assert.equal(studentDeclaredSwap.rows[0].reviewable, true);
 assert.equal(studentDeclaredSwap.unmatched.length, 0);
 
+const secondSchedule = {
+  ...schedule,
+  id: "recurring-b",
+  shift: "三四节"
+};
+const fullMorningCheckins = [
+  checkin("multi-in", "2026-03-02T00:29:00.000Z", "签到", {
+    shifts: ["一二节", "三四节"]
+  }),
+  checkin("multi-out", "2026-03-02T04:10:00.000Z", "签退", {
+    shifts: ["一二节", "三四节"]
+  })
+];
+const fullMorning = computeAttendance(
+  { schedules: [schedule, secondSchedule], checkins: fullMorningCheckins, reviews: [] },
+  { week: 3, now: "2026-03-02T04:10:00.000Z" }
+);
+assert.equal(fullMorning.rows.length, 2);
+assert.deepEqual(fullMorning.rows.map((row) => row.status), ["正常", "正常"]);
+assert.equal(fullMorning.unmatched.length, 0);
+
+const partiallyMatched = computeAttendance(
+  { schedules: [schedule], checkins: fullMorningCheckins, reviews: [] },
+  { week: 3, now: "2026-03-02T04:10:00.000Z" }
+);
+assert.equal(partiallyMatched.rows[0].status, "正常");
+assert.equal(partiallyMatched.unmatched.length, 2);
+assert.deepEqual(partiallyMatched.unmatched.map((record) => record.shifts), [["三四节"], ["三四节"]]);
+
+const secondOriginalSchedule = {
+  ...secondSchedule,
+  weekday: "星期二"
+};
+const multiShiftSwapCheckins = [
+  checkin("multi-swap-in", "2026-03-04T06:29:00.000Z", "签到", {
+    weekday: "星期三",
+    shifts: ["五六节", "七八节"],
+    dutyType: "调班",
+    abnormalType: "调班",
+    swapTime: "原星期一一二节和星期二三四节，调整为星期三五六节、七八节"
+  }),
+  checkin("multi-swap-out", "2026-03-04T10:10:00.000Z", "签退", {
+    weekday: "星期三",
+    shifts: ["五六节", "七八节"],
+    dutyType: "调班",
+    abnormalType: "调班",
+    swapTime: "原星期一一二节和星期二三四节，调整为星期三五六节、七八节"
+  })
+];
+const multiShiftSwap = computeAttendance(
+  { schedules: [schedule, secondOriginalSchedule], checkins: multiShiftSwapCheckins, reviews: [] },
+  { week: 3, now: "2026-03-04T10:10:00.000Z" }
+);
+assert.deepEqual(multiShiftSwap.rows.map((row) => row.status), ["调班", "调班"]);
+assert.equal(multiShiftSwap.unmatched.length, 0);
+
 const reviewed = summary([], undefined, [{
   scheduleId: "recurring-a__week_3",
   status: "请假",
@@ -164,6 +220,8 @@ console.log(JSON.stringify({
   noRecords: noRecords.rows[0].status,
   mismatch: mismatch.unmatched[0].status,
   studentDeclaredSwap: studentDeclaredSwap.rows[0].status,
+  multiShiftRows: fullMorning.rows.length,
+  multiShiftSwapRows: multiShiftSwap.rows.length,
   reviewedStatus: reviewed.rows[0].status,
   scheduleBatches: batchSummaries.length
 }));

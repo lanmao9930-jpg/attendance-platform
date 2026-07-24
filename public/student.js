@@ -9,6 +9,7 @@ const photoInput = document.querySelector("#photo");
 const dutyTypeSelect = document.querySelector("#dutyType");
 const swapDetailField = document.querySelector("#swapDetailField");
 const swapTimeInput = document.querySelector("#swapTime");
+const shiftChoices = document.querySelector("#shiftChoices");
 
 let session = "";
 
@@ -30,13 +31,34 @@ function fillOptions(select, items) {
   select.innerHTML = ["<option value=\"\" selected disabled>请选择</option>", ...items.map((item) => `<option value="${item.value}">${item.label}</option>`)].join("");
 }
 
+function renderShiftChoices(items) {
+  shiftChoices.replaceChildren(...items.map((item) => {
+    const label = document.createElement("label");
+    label.className = "shift-choice";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = "shift";
+    input.value = item.label;
+
+    const text = document.createElement("span");
+    const title = document.createElement("strong");
+    const time = document.createElement("small");
+    title.textContent = item.label;
+    time.textContent = `${item.start}-${item.end}`;
+    text.append(title, time);
+    label.append(input, text);
+    return label;
+  }));
+}
+
 function renderOptions(options) {
   fillSelect(document.querySelector("#center"), options.centers);
   fillSelect(document.querySelector("#position"), options.positions);
   fillSelect(document.querySelector("#dutyType"), options.dutyTypes);
   fillOptions(document.querySelector("#week"), options.weeks.map((week) => ({ value: week, label: `第${week}周` })));
   fillSelect(document.querySelector("#weekday"), options.weekdays);
-  fillOptions(document.querySelector("#shift"), options.shifts.map((shift) => ({ value: shift.label, label: shift.label })));
+  renderShiftChoices(options.shifts);
 }
 
 function updateSwapDetails() {
@@ -120,8 +142,8 @@ form.addEventListener("submit", async (event) => {
 
   const week = Number(formData.get("week"));
   const weekday = String(formData.get("weekday") || "");
-  const shift = String(formData.get("shift") || "");
-  if (!week || !weekday || !shift) {
+  const selectedShifts = formData.getAll("shift").map(String).filter(Boolean);
+  if (!week || !weekday || !selectedShifts.length) {
     showError("请选择值班时间。");
     return;
   }
@@ -144,7 +166,7 @@ form.addEventListener("submit", async (event) => {
       swapTime,
       week,
       weekday,
-      shifts: [shift],
+      shifts: selectedShifts,
       attendanceType: formData.get("attendanceType"),
       photoName: photo.name,
       photoDataUrl: await photoToDataUrl(photo)

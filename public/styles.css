@@ -742,8 +742,73 @@ textarea {
 
 .time-select-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.shift-fieldset {
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.shift-fieldset legend {
+  margin-bottom: 7px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.shift-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.shift-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.shift-choice:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.shift-choice input {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.shift-choice span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.shift-choice strong,
+.shift-choice small {
+  overflow-wrap: anywhere;
+}
+
+.shift-choice strong {
+  font-size: 14px;
+}
+
+.shift-choice small {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .choice {
@@ -871,6 +936,10 @@ textarea {
   .check-grid,
   .time-select-grid {
     grid-template-columns: 1fr;
+  }
+
+  .shift-choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .file-upload-row,

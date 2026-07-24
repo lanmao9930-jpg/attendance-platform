@@ -206,6 +206,17 @@ async function run() {
   assert.equal(photoResult.response.status, 200);
   assert.match(photoResult.contentType, /^image\//);
 
+  const multiShiftCheckin = await request("/api/checkins", {
+    method: "POST",
+    body: json({
+      ...studentRecord,
+      shifts: ["\u4e00\u4e8c\u8282", "\u4e09\u56db\u8282", "\u4e00\u4e8c\u8282"],
+      attendanceType: "\u7b7e\u5230"
+    })
+  });
+  assert.equal(multiShiftCheckin.response.status, 200);
+  assert.deepEqual(multiShiftCheckin.body.record.shifts, ["\u4e00\u4e8c\u8282", "\u4e09\u56db\u8282"]);
+
   const newBatch = await request("/api/schedules", {
     method: "POST",
     body: json({
@@ -241,6 +252,7 @@ async function run() {
     partialCenterTotal: partialCenterUpdate.body.count,
     unmatchedStatus: mismatchRaw.matchStatus,
     studentSwapStatus: swapRaw.matchStatus,
+    multiShiftCount: multiShiftCheckin.body.record.shifts.length,
     finalStatus: summary.body.rows[0].status,
     scheduleBatches: newBatch.body.batches.length,
     photoContentType: photoResult.contentType

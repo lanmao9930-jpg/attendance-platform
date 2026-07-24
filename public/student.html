@@ -47,8 +47,11 @@
               <div class="time-select-grid">
                 <select id="week" name="week" required aria-label="周数"></select>
                 <select id="weekday" name="weekday" required aria-label="星期"></select>
-                <select id="shift" name="shift" required aria-label="时间段"></select>
               </div>
+              <fieldset class="shift-fieldset">
+                <legend>节次（可多选）</legend>
+                <div id="shiftChoices" class="shift-choice-grid"></div>
+              </fieldset>
             </div>
             <div class="field">
               <label for="attendanceType">考勤类别</label>
