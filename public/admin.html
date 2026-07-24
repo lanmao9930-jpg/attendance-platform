@@ -97,6 +97,10 @@
               </dl>
               <div id="scheduleSheetSummary" class="sheet-summary"></div>
               <div id="scheduleIssueSummary" class="notice error hidden"></div>
+              <div class="batch-name-field">
+                <label for="scheduleBatchName">新排班名称</label>
+                <input id="scheduleBatchName" maxlength="80" placeholder="例如：2026 年秋季学期固定排班">
+              </div>
               <div class="table-wrap preview-table-wrap">
                 <table>
                   <thead>
@@ -106,7 +110,8 @@
                 </table>
               </div>
               <div class="toolbar">
-                <button class="button" id="confirmScheduleImportBtn" type="button" disabled>确认更新固定排班</button>
+                <button class="button secondary" id="confirmScheduleImportBtn" type="button" disabled>更新当前固定排班</button>
+                <button class="button" id="confirmNewScheduleBatchBtn" type="button" disabled>导入新的固定排班</button>
                 <button class="button secondary" id="cancelScheduleImportBtn" type="button">取消</button>
               </div>
             </div>
@@ -116,13 +121,20 @@
               <label for="schedulePaste">Excel 排班数据</label>
               <textarea id="schedulePaste" spellcheck="false" placeholder="中心	周次	星期	节次	值班人员	职位	联系电话"></textarea>
               <div class="toolbar">
-                <button class="button secondary" id="importSchedulesBtn" type="button">按粘贴内容覆盖</button>
+                <button class="button secondary" id="importSchedulesBtn" type="button">按粘贴内容导入为新排班</button>
               </div>
             </details>
           </div>
           <div class="panel">
+            <div class="schedule-version-section">
+              <div class="section-heading">
+                <h2>排班版本</h2>
+                <span class="muted">旧版本只读保存</span>
+              </div>
+              <div id="scheduleBatchList" class="schedule-batch-list"></div>
+            </div>
             <div class="section-heading">
-              <h2>已归档排班</h2>
+              <h2 id="scheduleTableTitle">当前固定排班</h2>
               <span id="scheduleTableCount" class="muted"></span>
             </div>
             <div class="table-wrap data-table-wrap">

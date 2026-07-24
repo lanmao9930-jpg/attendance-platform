@@ -1,6 +1,6 @@
 {
   "name": "attendance-platform",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "commonjs",
   "scripts": {
@@ -8,7 +8,8 @@
     "start": "node local-server.js",
     "check": "node scripts/check.js",
     "test:schedule-import": "node scripts/schedule-import-test.js",
-    "test:unit": "node scripts/schedule-import-test.js && node scripts/attendance-test.js"
+    "test:unit": "node scripts/schedule-import-test.js && node scripts/attendance-test.js",
+    "test:integration": "node scripts/run-integration-test.js"
   },
   "dependencies": {
     "@cloudbase/node-sdk": "^3.18.3",

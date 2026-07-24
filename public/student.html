@@ -30,8 +30,17 @@
               <select id="center" name="center" required></select>
             </div>
             <div class="field">
+              <label for="position">职位</label>
+              <select id="position" name="position" required></select>
+            </div>
+            <div class="field">
               <label for="dutyType">值班类型</label>
               <select id="dutyType" name="dutyType" required></select>
+            </div>
+            <div class="field full hidden" id="swapDetailField">
+              <label for="swapTime">调班说明</label>
+              <textarea id="swapTime" name="swapTime" rows="3" placeholder="请写明原值班时间、实际值班时间及调班对象或原因"></textarea>
+              <span class="muted">选择“调班”时必须填写，后台会与本人固定排班自动核对。</span>
             </div>
             <div class="field full">
               <label>值班时间</label>

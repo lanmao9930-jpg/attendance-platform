@@ -157,6 +157,7 @@ async function run() {
         session: studentSession.body.session,
         name: testName,
         center: centers[2],
+        position: positions[5],
         dutyType: dutyTypes[0],
         week: 14,
         weekday: weekdays[0],

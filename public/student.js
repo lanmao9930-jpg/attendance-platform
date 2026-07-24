@@ -6,6 +6,9 @@ const errorNotice = document.querySelector("#errorNotice");
 const successNotice = document.querySelector("#successNotice");
 const submitBtn = document.querySelector("#submitBtn");
 const photoInput = document.querySelector("#photo");
+const dutyTypeSelect = document.querySelector("#dutyType");
+const swapDetailField = document.querySelector("#swapDetailField");
+const swapTimeInput = document.querySelector("#swapTime");
 
 let session = "";
 
@@ -29,10 +32,18 @@ function fillOptions(select, items) {
 
 function renderOptions(options) {
   fillSelect(document.querySelector("#center"), options.centers);
+  fillSelect(document.querySelector("#position"), options.positions);
   fillSelect(document.querySelector("#dutyType"), options.dutyTypes);
   fillOptions(document.querySelector("#week"), options.weeks.map((week) => ({ value: week, label: `第${week}周` })));
   fillSelect(document.querySelector("#weekday"), options.weekdays);
   fillOptions(document.querySelector("#shift"), options.shifts.map((shift) => ({ value: shift.label, label: shift.label })));
+}
+
+function updateSwapDetails() {
+  const isSwap = dutyTypeSelect.value === "调班";
+  swapDetailField.classList.toggle("hidden", !isSwap);
+  swapTimeInput.required = isSwap;
+  if (!isSwap) swapTimeInput.value = "";
 }
 
 function showError(message, fatal = false) {
@@ -114,6 +125,12 @@ form.addEventListener("submit", async (event) => {
     showError("请选择值班时间。");
     return;
   }
+  const dutyType = String(formData.get("dutyType") || "");
+  const swapTime = String(formData.get("swapTime") || "").trim();
+  if (dutyType === "调班" && !swapTime) {
+    showError("选择调班时，请填写具体调班说明。");
+    return;
+  }
 
   submitBtn.disabled = true;
   submitBtn.textContent = "正在提交...";
@@ -122,7 +139,9 @@ form.addEventListener("submit", async (event) => {
       session,
       name: formData.get("name"),
       center: formData.get("center"),
-      dutyType: formData.get("dutyType"),
+      position: formData.get("position"),
+      dutyType,
+      swapTime,
       week,
       weekday,
       shifts: [shift],
@@ -135,6 +154,7 @@ form.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload)
     });
     form.reset();
+    updateSwapDetails();
     successNotice.textContent = "提交成功，后台已记录本次签到签退。";
     successNotice.classList.remove("hidden");
   } catch (error) {
@@ -146,4 +166,5 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+dutyTypeSelect.addEventListener("change", updateSwapDetails);
 init();

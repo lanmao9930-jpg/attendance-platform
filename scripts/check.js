@@ -22,7 +22,8 @@ const files = [
   "public/admin.js",
   "public/display.js",
   "public/student.js",
-  "scripts/integration-test.js"
+  "scripts/integration-test.js",
+  "scripts/run-integration-test.js"
 ];
 
 for (const file of files) {

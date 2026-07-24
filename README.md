@@ -28,10 +28,11 @@ npm start
 
 ```powershell
 npm run check
-node scripts\integration-test.js
+npm run test:unit
+npm run test:integration
 ```
 
-集成测试默认检查 `http://localhost:8789`。启动该端口的测试服务时可使用：
+`npm run test:integration` 会自动启动一套隔离的临时服务并在结束后清理测试数据。需要手工联调时可使用：
 
 ```powershell
 $env:PORT="8789"
@@ -49,8 +50,9 @@ npm start
 - 管理端：`https://attendance-platform-d1b99a89a6e3.service.tcloudbase.com/admin`
 - 现场屏：管理员登录后点击“打开现场屏”或“复制现场屏地址”
 - 学生端：只通过现场动态二维码进入
-- 固定排班：管理端可直接上传 `.xlsx`、`.xls` 或 `.csv`，支持单中心文件、纵向明细和横向课表，自动识别周期规则后预览确认
-- 考勤审核：按周次和中心筛选，签到后按节次开始时间自动判断正常或迟到；排班不匹配、缺少签到签退和提前签退会标红待核查
+- 学生表单：填写姓名、中心、职位、正常/调班、值班时间、签到/签退并上传照片；调班必须填写具体说明
+- 固定排班：管理端可直接上传 `.xlsx`、`.xls` 或 `.csv`，支持单中心文件、纵向明细和横向课表；可更新当前排班或导入新版本，旧版本只读保留并可查看
+- 考勤审核：按周次和中心筛选，自动判断正常、迟到和学生申报调班；排班不匹配、缺少签到签退和提前签退会标红，人工复核可选择请假
 
 正式管理员口令由随机值生成，只保存在被 Git 忽略的 `.env.local`，不要改回简单数字口令。
 

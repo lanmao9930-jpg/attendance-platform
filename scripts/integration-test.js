@@ -88,7 +88,7 @@ async function run() {
 
   const imported = await request("/api/schedules", {
     method: "POST",
-    body: json({ schedules: preview.body.schedules })
+    body: json({ schedules: preview.body.schedules, mode: "new-batch", batchName: "测试固定排班" })
   }, true);
   assert.equal(imported.response.status, 200);
   assert.equal(imported.body.count, 1);
@@ -116,7 +116,8 @@ async function run() {
     session: studentSession.body.session,
     name: "\u6d4b\u8bd5\u540c\u5b66",
     center: "\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3",
-    dutyType: "\u7ebf\u4e0b",
+    position: "\u5b66\u751f\u52a9\u7406",
+    dutyType: "\u6b63\u5e38",
     week: 14,
     weekday: "\u661f\u671f\u4e00",
     shifts: ["\u4e00\u4e8c\u8282"],
@@ -134,14 +135,56 @@ async function run() {
   });
   assert.equal(mismatchCheckin.response.status, 200);
 
+  const rejectedSwap = await request("/api/checkins", {
+    method: "POST",
+    body: json({
+      ...studentRecord,
+      dutyType: "\u8c03\u73ed",
+      weekday: "\u661f\u671f\u4e8c",
+      shifts: ["\u4e09\u56db\u8282"],
+      attendanceType: "\u7b7e\u5230"
+    })
+  });
+  assert.equal(rejectedSwap.response.status, 400);
+
+  const swapDetails = "\u539f\u661f\u671f\u4e00\u4e00\u4e8c\u8282\uff0c\u4e0e\u540c\u5b66\u4e92\u6362\u4e3a\u661f\u671f\u4e8c\u4e09\u56db\u8282";
+  const swapSignIn = await request("/api/checkins", {
+    method: "POST",
+    body: json({
+      ...studentRecord,
+      dutyType: "\u8c03\u73ed",
+      swapTime: swapDetails,
+      weekday: "\u661f\u671f\u4e8c",
+      shifts: ["\u4e09\u56db\u8282"],
+      attendanceType: "\u7b7e\u5230"
+    })
+  });
+  const swapSignOut = await request("/api/checkins", {
+    method: "POST",
+    body: json({
+      ...studentRecord,
+      dutyType: "\u8c03\u73ed",
+      swapTime: swapDetails,
+      weekday: "\u661f\u671f\u4e8c",
+      shifts: ["\u4e09\u56db\u8282"],
+      attendanceType: "\u7b7e\u9000"
+    })
+  });
+  assert.equal(swapSignIn.response.status, 200);
+  assert.equal(swapSignOut.response.status, 200);
+
   const rawCheckins = await request("/api/checkins", {}, true);
   const mismatchRaw = rawCheckins.body.checkins.find((record) => record.id === mismatchCheckin.body.record.id);
   assert.equal(mismatchRaw.matchStatus, "\u5f02\u5e38");
   assert.match(mismatchRaw.matchReason, /\u661f\u671f\u4e0e\u56fa\u5b9a\u6392\u73ed\u4e0d\u4e00\u81f4/);
+  const swapRaw = rawCheckins.body.checkins.find((record) => record.id === swapSignIn.body.record.id);
+  assert.equal(swapRaw.matchStatus, "\u8c03\u73ed");
 
   const automaticSummary = await request("/api/summary?week=14&center=\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3", {}, true);
   assert.equal(automaticSummary.body.unmatched.length, 1);
   assert.equal(automaticSummary.body.unmatched[0].status, "\u5f02\u5e38");
+  assert.equal(automaticSummary.body.rows[0].systemStatus, "\u8c03\u73ed");
+  assert.equal(automaticSummary.body.rows[0].statusSource, "\u5b66\u751f\u7533\u62a5");
 
   const rejectedReview = await request("/api/reviews", {
     method: "POST",
@@ -151,17 +194,44 @@ async function run() {
 
   const savedReview = await request("/api/reviews", {
     method: "POST",
-    body: json({ scheduleId: imported.body.schedules[0].id, status: "\u8c03\u73ed", remark: "\u6d4b\u8bd5\uff1a\u4e0e\u540c\u5b66\u4e92\u6362\u503c\u73ed" })
+    body: json({ scheduleId: imported.body.schedules[0].id, status: "\u8bf7\u5047", remark: "\u5df2\u6838\u9a8c\u8bf7\u5047\u624b\u7eed" })
   }, true);
   assert.equal(savedReview.response.status, 200);
 
   const summary = await request("/api/summary", {}, true);
   assert.equal(summary.response.status, 200);
-  assert.equal(summary.body.rows[0].status, "\u8c03\u73ed");
+  assert.equal(summary.body.rows[0].status, "\u8bf7\u5047");
 
   const photoResult = await request(`/api/photo?id=${encodeURIComponent(signIn.body.record.id)}`, {}, true);
   assert.equal(photoResult.response.status, 200);
   assert.match(photoResult.contentType, /^image\//);
+
+  const newBatch = await request("/api/schedules", {
+    method: "POST",
+    body: json({
+      mode: "new-batch",
+      batchName: "\u65b0\u5b66\u671f\u56fa\u5b9a\u6392\u73ed",
+      schedules: [{
+        center: "\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3",
+        week: 1,
+        weekday: "\u661f\u671f\u4e09",
+        shift: "\u4e94\u516d\u8282",
+        name: "\u65b0\u5b66\u671f\u6d4b\u8bd5"
+      }]
+    })
+  }, true);
+  assert.equal(newBatch.response.status, 200);
+  assert.equal(newBatch.body.count, 1);
+  assert.equal(newBatch.body.totalStored, 3);
+  assert.equal(newBatch.body.batches.length, 2);
+
+  const archivedBatch = await request(`/api/schedules?batchId=${encodeURIComponent(imported.body.batchId)}`, {}, true);
+  assert.equal(archivedBatch.response.status, 200);
+  assert.equal(archivedBatch.body.schedules.length, 2);
+
+  const checkinsAfterBatchSwitch = await request("/api/checkins", {}, true);
+  const oldRecord = checkinsAfterBatchSwitch.body.checkins.find((record) => record.id === signIn.body.record.id);
+  assert.equal(oldRecord.matchStatus, "\u5386\u53f2\u8bb0\u5f55");
 
   console.log(JSON.stringify({
     health: health.body.version,
@@ -170,7 +240,9 @@ async function run() {
     importedSchedules: imported.body.count,
     partialCenterTotal: partialCenterUpdate.body.count,
     unmatchedStatus: mismatchRaw.matchStatus,
+    studentSwapStatus: swapRaw.matchStatus,
     finalStatus: summary.body.rows[0].status,
+    scheduleBatches: newBatch.body.batches.length,
     photoContentType: photoResult.contentType
   }));
 }

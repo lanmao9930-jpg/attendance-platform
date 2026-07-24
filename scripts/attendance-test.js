@@ -1,5 +1,10 @@
 const assert = require("node:assert/strict");
-const { computeAttendance, findScheduleOccurrence } = require("../lib/attendance");
+const {
+  activeScheduleRows,
+  computeAttendance,
+  findScheduleOccurrence,
+  summarizeScheduleBatches
+} = require("../lib/attendance");
 const { shifts } = require("../lib/constants");
 
 const schedule = {
@@ -95,12 +100,34 @@ assert.equal(mismatch.unmatched.length, 1);
 assert.equal(mismatch.unmatched[0].status, "异常");
 assert.match(mismatch.unmatched[0].reason, /星期与固定排班不一致/);
 
+const studentDeclaredSwap = summary([
+  checkin("swap-in", "2026-03-03T02:30:00.000Z", "签到", {
+    weekday: "星期二",
+    shifts: ["三四节"],
+    dutyType: "调班",
+    abnormalType: "调班",
+    swapTime: "原星期一一二节，与另一位同学互换为星期二三四节"
+  }),
+  checkin("swap-out", "2026-03-03T04:10:00.000Z", "签退", {
+    weekday: "星期二",
+    shifts: ["三四节"],
+    dutyType: "调班",
+    abnormalType: "调班",
+    swapTime: "原星期一一二节，与另一位同学互换为星期二三四节"
+  })
+]);
+assert.equal(studentDeclaredSwap.rows[0].status, "调班");
+assert.equal(studentDeclaredSwap.rows[0].statusSource, "学生申报");
+assert.equal(studentDeclaredSwap.rows[0].needsReview, false);
+assert.equal(studentDeclaredSwap.rows[0].reviewable, true);
+assert.equal(studentDeclaredSwap.unmatched.length, 0);
+
 const reviewed = summary([], undefined, [{
   scheduleId: "recurring-a__week_3",
-  status: "调班",
-  remark: "主管已确认与同学互换值班"
+  status: "请假",
+  remark: "已核验请假手续"
 }]);
-assert.equal(reviewed.rows[0].status, "调班");
+assert.equal(reviewed.rows[0].status, "请假");
 assert.equal(reviewed.rows[0].systemStatus, "待核查");
 assert.equal(reviewed.rows[0].statusSource, "人工复核");
 assert.equal(findScheduleOccurrence([schedule], "recurring-a__week_3").week, 3);
@@ -109,11 +136,34 @@ assert.equal(findScheduleOccurrence([schedule], "recurring-a__week_4"), null);
 const weekFour = computeAttendance({ schedules: [schedule], checkins: [], reviews: [] }, { week: 4 });
 assert.equal(weekFour.rows.length, 0);
 
+const archivedSchedule = {
+  ...schedule,
+  id: "archived-a",
+  batchId: "batch-old",
+  batchName: "旧排班",
+  isActive: false
+};
+const currentSchedule = {
+  ...schedule,
+  id: "current-a",
+  batchId: "batch-current",
+  batchName: "新排班",
+  batchCreatedAt: "2026-03-01T00:00:00.000Z",
+  isActive: true
+};
+assert.deepEqual(activeScheduleRows([archivedSchedule, currentSchedule]).map((item) => item.id), ["current-a"]);
+const batchSummaries = summarizeScheduleBatches([archivedSchedule, currentSchedule]);
+assert.equal(batchSummaries.length, 2);
+assert.equal(batchSummaries[0].name, "新排班");
+assert.equal(batchSummaries[0].isActive, true);
+
 console.log(JSON.stringify({
   onTime: onTime.rows[0].status,
   oneMinuteLate: late.rows[0].status,
   missingSignOut: missingSignOut.rows[0].status,
   noRecords: noRecords.rows[0].status,
   mismatch: mismatch.unmatched[0].status,
-  reviewedStatus: reviewed.rows[0].status
+  studentDeclaredSwap: studentDeclaredSwap.rows[0].status,
+  reviewedStatus: reviewed.rows[0].status,
+  scheduleBatches: batchSummaries.length
 }));
