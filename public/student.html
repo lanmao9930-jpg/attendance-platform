@@ -44,10 +44,7 @@
             </div>
             <div class="field full">
               <label>值班时间</label>
-              <div class="time-select-grid">
-                <select id="week" name="week" required aria-label="周数"></select>
-                <select id="weekday" name="weekday" required aria-label="星期"></select>
-              </div>
+              <div id="calendarDisplay" class="notice" aria-live="polite"></div>
               <fieldset class="shift-fieldset">
                 <legend>节次（可多选）</legend>
                 <div id="shiftChoices" class="shift-choice-grid"></div>

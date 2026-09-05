@@ -34,6 +34,7 @@
           <button data-view="schedules">固定排班</button>
           <button data-view="review">考勤审核</button>
           <button data-view="records">原始归档</button>
+          <button data-view="semester">学期日历</button>
         </nav>
       </aside>
 
@@ -98,7 +99,7 @@
               <div id="scheduleSheetSummary" class="sheet-summary"></div>
               <div id="scheduleIssueSummary" class="notice error hidden"></div>
               <div class="batch-name-field">
-                <label for="scheduleBatchName">新排班名称</label>
+                <label for="scheduleBatchName">导入名称</label>
                 <input id="scheduleBatchName" maxlength="80" placeholder="例如：2026 年秋季学期固定排班">
               </div>
               <div class="table-wrap preview-table-wrap">
@@ -110,8 +111,7 @@
                 </table>
               </div>
               <div class="toolbar">
-                <button class="button secondary" id="confirmScheduleImportBtn" type="button" disabled>更新当前固定排班</button>
-                <button class="button" id="confirmNewScheduleBatchBtn" type="button" disabled>导入新的固定排班</button>
+                <button class="button" id="confirmScheduleImportBtn" type="button" disabled>按中心导入当前学期</button>
                 <button class="button secondary" id="cancelScheduleImportBtn" type="button">取消</button>
               </div>
             </div>
@@ -121,11 +121,13 @@
               <label for="schedulePaste">Excel 排班数据</label>
               <textarea id="schedulePaste" spellcheck="false" placeholder="中心	周次	星期	节次	值班人员	职位	联系电话"></textarea>
               <div class="toolbar">
-                <button class="button secondary" id="importSchedulesBtn" type="button">按粘贴内容导入为新排班</button>
+                <button class="button secondary" id="importSchedulesBtn" type="button">识别并预览</button>
               </div>
             </details>
           </div>
           <div class="panel">
+            <div class="section-heading"><h2>导入记录</h2></div>
+            <div id="importHistoryList" class="schedule-batch-list"></div>
             <div class="schedule-version-section">
               <div class="section-heading">
                 <h2>排班版本</h2>
@@ -178,6 +180,27 @@
               </table>
             </div>
           </div>
+        </section>
+
+        <section data-panel="semester" class="grid hidden">
+          <form id="semesterForm" class="panel">
+            <div class="section-heading"><h2>当前学期</h2><span id="semesterCurrent" class="muted"></span></div>
+            <div class="field-grid">
+              <div class="field"><label for="semesterName">学期名称</label><input id="semesterName" maxlength="80" required></div>
+              <div class="field"><label for="semesterStart">第一周星期一</label><input id="semesterStart" type="date" required></div>
+              <div class="field"><label for="semesterWeeks">学期周数</label><input id="semesterWeeks" type="number" min="1" max="20" required></div>
+            </div>
+            <div class="toolbar"><button class="button" type="submit">保存学期日历</button></div>
+            <p id="semesterNotice" class="muted" role="status"></p>
+          </form>
+          <form id="newSemesterForm" class="panel">
+            <div class="section-heading"><h2>开启新学期</h2></div>
+            <div class="field-grid">
+              <div class="field"><label for="newSemesterName">新学期名称</label><input id="newSemesterName" maxlength="80" required></div>
+              <div class="field"><label for="newSemesterStart">第一周星期一</label><input id="newSemesterStart" type="date" required></div>
+            </div>
+            <div class="toolbar"><button class="button secondary" type="submit">开启新学期并归档当前排班</button></div>
+          </form>
         </section>
 
         <section data-panel="records" class="panel hidden">

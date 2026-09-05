@@ -1,0 +1,16 @@
+const assert = require("node:assert/strict");
+const { DEFAULT_CALENDAR, calendarContext, scheduleDate, validateCalendar, checkinCalendar } = require("../lib/calendar");
+const c = DEFAULT_CALENDAR;
+assert.equal(calendarContext(c, "2026-09-06T15:59:59Z").status, "before");
+assert.equal(calendarContext(c, "2026-09-06T16:00:00Z").week, 1);
+assert.equal(calendarContext(c, "2026-09-13T15:59:59Z").week, 1);
+assert.equal(calendarContext(c, "2026-09-13T16:00:00Z").week, 2);
+assert.equal(calendarContext(c, "2027-01-01T00:00:00Z").week, 17);
+assert.equal(calendarContext(c, "2027-01-24T16:00:00Z").status, "after");
+assert.equal(scheduleDate(c, 2, "星期一"), "2026-09-14");
+assert.throws(() => validateCalendar({ ...c, startDate: "2026-09-08" }), /星期一/);
+assert.throws(() => validateCalendar({ ...c, startDate: "2026-02-30" }), /日期/);
+assert.throws(() => checkinCalendar(c, "2026-09-05T00:00:00Z"), /尚未开始/);
+const actual = checkinCalendar(c, "2026-09-14T00:30:00Z");
+assert.deepEqual([actual.week, actual.weekday, actual.dutyDate], [2, "星期一", "2026-09-14"]);
+console.log("Calendar boundary tests passed.");

@@ -12,6 +12,7 @@ const swapTimeInput = document.querySelector("#swapTime");
 const shiftChoices = document.querySelector("#shiftChoices");
 
 let session = "";
+let calendar = null;
 
 async function fetchJson(url, options) {
   const response = await fetch(url, {
@@ -56,8 +57,6 @@ function renderOptions(options) {
   fillSelect(document.querySelector("#center"), options.centers);
   fillSelect(document.querySelector("#position"), options.positions);
   fillSelect(document.querySelector("#dutyType"), options.dutyTypes);
-  fillOptions(document.querySelector("#week"), options.weeks.map((week) => ({ value: week, label: `第${week}周` })));
-  fillSelect(document.querySelector("#weekday"), options.weekdays);
   renderShiftChoices(options.shifts);
 }
 
@@ -120,6 +119,10 @@ async function init() {
       body: JSON.stringify({ token })
     });
     session = data.session;
+    const timing = await fetchJson("/api/calendar");
+    calendar = timing.calendar;
+    document.querySelector("#calendarDisplay").textContent = `${calendar.name} · ${calendar.message}`;
+    submitBtn.disabled = !calendar.canSubmit;
     renderOptions(data.options);
     loadingNotice.classList.add("hidden");
     form.classList.remove("hidden");
@@ -140,11 +143,9 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  const week = Number(formData.get("week"));
-  const weekday = String(formData.get("weekday") || "");
   const selectedShifts = formData.getAll("shift").map(String).filter(Boolean);
-  if (!week || !weekday || !selectedShifts.length) {
-    showError("请选择值班时间。");
+  if (!calendar?.canSubmit || !selectedShifts.length) {
+    showError(calendar?.canSubmit ? "请至少选择一个节次。" : calendar?.message || "暂时无法确定值班日期");
     return;
   }
   const dutyType = String(formData.get("dutyType") || "");
@@ -164,8 +165,7 @@ form.addEventListener("submit", async (event) => {
       position: formData.get("position"),
       dutyType,
       swapTime,
-      week,
-      weekday,
+      dutyDate: calendar.date,
       shifts: selectedShifts,
       attendanceType: formData.get("attendanceType"),
       photoName: photo.name,

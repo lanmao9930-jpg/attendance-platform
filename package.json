@@ -1,6 +1,6 @@
 {
   "name": "attendance-platform",
-  "version": "0.8.0",
+  "version": "0.10.0",
   "private": true,
   "type": "commonjs",
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "node local-server.js",
     "check": "node scripts/check.js",
     "test:schedule-import": "node scripts/schedule-import-test.js",
-    "test:unit": "node scripts/schedule-import-test.js && node scripts/attendance-test.js",
+    "test:unit": "node scripts/calendar-test.js && node scripts/planning-test.js && node scripts/cloud-planning-test.js && node scripts/schedule-import-test.js && node scripts/attendance-test.js",
     "test:integration": "node scripts/run-integration-test.js"
   },
   "dependencies": {

@@ -19,7 +19,6 @@ const schedulePaste = document.querySelector("#schedulePaste");
 const scheduleFile = document.querySelector("#scheduleFile");
 const analyzeScheduleFileBtn = document.querySelector("#analyzeScheduleFileBtn");
 const confirmScheduleImportBtn = document.querySelector("#confirmScheduleImportBtn");
-const confirmNewScheduleBatchBtn = document.querySelector("#confirmNewScheduleBatchBtn");
 const cancelScheduleImportBtn = document.querySelector("#cancelScheduleImportBtn");
 const scheduleBatchName = document.querySelector("#scheduleBatchName");
 const scheduleBatchList = document.querySelector("#scheduleBatchList");
@@ -45,6 +44,9 @@ let currentScheduleCount = 0;
 let pendingScheduleImport = null;
 let currentSchedulesCache = [];
 let viewingScheduleBatchId = "";
+let planningRevision = 0;
+let pendingImportRevision = 0;
+let calendarInitialized = false;
 
 navButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -77,7 +79,7 @@ function escapeHtml(value) {
 }
 
 function formatTime(value) {
-  return value ? new Date(value).toLocaleString("zh-CN") : "-";
+  return value ? new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "-";
 }
 
 function showLogin(message = "") {
@@ -142,6 +144,20 @@ function updateCountdown() {
 }
 
 async function refreshData() {
+  const timing = await fetchJson("/api/semester");
+  planningRevision = timing.revision;
+  const calendar = timing.calendar;
+  const chosen = reviewWeek.value;
+  reviewWeek.innerHTML = calendar.weekRanges.map(item => `<option value="${item.week}">第${item.week}周 (${item.startDate} 至 ${item.endDate})</option>`).join("");
+  reviewWeek.value = calendarInitialized ? chosen : String(calendar.week || (calendar.status === "after" ? calendar.weekCount : 1));
+  if (!reviewWeek.value) reviewWeek.value = "1";
+  if (!calendarInitialized) {
+    document.querySelector("#semesterName").value = calendar.name;
+    document.querySelector("#semesterStart").value = calendar.startDate;
+    document.querySelector("#semesterWeeks").value = calendar.weekCount;
+    calendarInitialized = true;
+  }
+  document.querySelector("#semesterCurrent").textContent = calendar.message;
   const summaryParams = new URLSearchParams({ week: reviewWeek.value || "1" });
   if (reviewCenter.value) summaryParams.set("center", reviewCenter.value);
   const [summary, raw, schedules, storage] = await Promise.all([
@@ -151,6 +167,8 @@ async function refreshData() {
     fetchJson("/api/admin-storage")
   ]);
   renderSummary(summary, raw.checkins, schedules.schedules, schedules.batches || [], storage);
+  const history = await fetchJson("/api/schedule-imports");
+  renderImportHistory(history.imports);
 }
 
 function renderSummary(summary, checkins, schedules, batches, storage) {
@@ -159,10 +177,10 @@ function renderSummary(summary, checkins, schedules, batches, storage) {
   document.querySelector("#metricSchedules").textContent = summary.totalSchedules;
   document.querySelector("#metricCheckins").textContent = summary.totalCheckins;
   document.querySelector("#metricNormal").textContent = summary.counts["正常"] || 0;
-  document.querySelector("#metricAbnormal").textContent = summary.totalSchedules - (summary.counts["正常"] || 0) + (summary.unmatched?.length || 0);
+  document.querySelector("#metricAbnormal").textContent = summary.rows.filter(row => row.needsReview).length + (summary.unmatched?.length || 0);
   document.querySelector("#scheduleCount").textContent = schedules.length;
   document.querySelector("#checkinCount").textContent = checkins.length;
-  const storageLabels = { cloudbase: "CloudBase 云数据库与云存储", "vercel-blob": "Vercel Blob", "local-json": "本地预览" };
+  const storageLabels = { cloudbase: "CloudBase 数据库与云存储", "local-json": "本地测试" };
   document.querySelector("#storageMode").textContent = storageLabels[storage.mode] || storage.mode;
   const centerLabel = summary.selectedCenter || "全部中心";
   document.querySelector("#summaryTime").textContent = `${centerLabel} · 第${summary.selectedWeek || reviewWeek.value}周 · ${formatTime(summary.generatedAt)}`;
@@ -254,7 +272,7 @@ function renderReviews(rows, unmatched) {
   const body = document.querySelector("#reviewBody");
   const scheduleRows = rows.map((row) => `
     <tr data-schedule-id="${escapeHtml(row.id)}" class="${row.needsReview ? "review-row-attention" : ""}">
-      <td>${escapeHtml(row.center)}</td><td>第${escapeHtml(row.week)}周</td><td>${escapeHtml(row.weekday)}</td><td>${escapeHtml(row.shift)}</td><td>${escapeHtml(row.name)}</td>
+      <td>${escapeHtml(row.center)}</td><td>第${escapeHtml(row.week)}周<br>${escapeHtml(row.date || "")}</td><td>${escapeHtml(row.weekday)}</td><td>${escapeHtml(row.shift)}</td><td>${escapeHtml(row.name)}</td>
       <td>${formatTime(row.signInTime)}</td><td>${formatTime(row.signOutTime)}</td>
       <td>${row.photoRecordId ? `<a class="text-link" href="/api/photo?id=${encodeURIComponent(row.photoRecordId)}" target="_blank" rel="noreferrer">查看</a>` : "-"}</td>
       <td>${statusBadge(row.status, row.statusSource)}</td>
@@ -367,29 +385,61 @@ function parseCsvLine(line) {
 }
 
 async function importSchedules() {
-  const schedules = parseScheduleText(schedulePaste.value);
   importSchedulesBtn.disabled = true;
-  scheduleImportNotice.textContent = "正在归档...";
   try {
-    const result = await fetchJson("/api/schedules", {
-      method: "POST",
-      body: JSON.stringify({
-        schedules,
-        mode: "new-batch",
-        batchName: `粘贴导入 ${new Date().toLocaleDateString("zh-CN")}`
-      })
-    });
-    schedulePaste.value = "";
-    const warning = result.notTwoDuties?.length ? `；${result.notTwoDuties.length} 位同学的排班次数不是 2 次` : "";
-    viewingScheduleBatchId = "";
-    scheduleImportNotice.textContent = `已启用 ${result.count} 条新固定排班，上一版已只读保存${warning}`;
-    await refreshData();
-  } catch (error) {
-    if (!handleAuthError(error)) scheduleImportNotice.textContent = error.message;
-  } finally {
-    importSchedulesBtn.disabled = false;
-  }
+    const schedules = parseScheduleText(schedulePaste.value);
+    const result = await fetchJson("/api/schedules", { method: "POST", body: JSON.stringify({ schedules, preview: true }) });
+    pendingScheduleImport = schedules;
+    pendingImportRevision = result.revision;
+    renderScheduleImportPreview({ ...result, schedules, count: schedules.length,
+      peopleCount: new Set(schedules.map(row => row.studentNo || row.name)).size,
+      issueCount: 0, fileName: "粘贴导入", sheetSummaries: [] });
+  } catch (error) { if (!handleAuthError(error)) scheduleImportNotice.textContent = error.message; }
+  finally { importSchedulesBtn.disabled = false; }
 }
+
+function renderImportHistory(items) {
+  const list = document.querySelector("#importHistoryList");
+  list.innerHTML = items.length ? items.map(item => `<div class="schedule-batch-row">
+    <strong>${escapeHtml(({ import: "按中心导入", calendar: "日历修改", "new-semester": "新学期归档" })[item.action] || item.action)}</strong>
+    <span>${escapeHtml(item.sourceName || item.name)} · ${formatTime(item.createdAt)}</span>
+    <button class="button secondary" type="button" data-snapshot="${escapeHtml(item.id)}">查看修改前快照</button>
+  </div>`).join("") : `<span class="muted">暂无导入记录</span>`;
+  list.querySelectorAll("[data-snapshot]").forEach(button => button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      const data = await fetchJson(`/api/schedule-imports?id=${encodeURIComponent(button.dataset.snapshot)}`);
+      viewingScheduleBatchId = `snapshot:${button.dataset.snapshot}`;
+      scheduleTableTitle.textContent = `${data.calendar.name} · 修改前快照（只读）`;
+      renderSchedules(data.schedules);
+    } catch (error) { scheduleImportNotice.textContent = error.message; }
+    finally { button.disabled = false; }
+  }));
+}
+
+async function saveSemester(event, isNew) {
+  event.preventDefault();
+  const prefix = isNew ? "newSemester" : "semester";
+  const calendar = { name: document.querySelector(`#${prefix}Name`).value.trim(),
+    startDate: document.querySelector(`#${prefix}Start`).value,
+    weekCount: isNew ? 20 : Number(document.querySelector("#semesterWeeks").value) };
+  if (isNew && !window.confirm(`开启“${calendar.name}”后，当前全部中心排班转为历史，新学期从空排班开始。确认继续？`)) return;
+  const button = event.target.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const result = await fetchJson("/api/semester", { method: "POST", body: JSON.stringify({
+      action: isNew ? "new-semester" : "calendar", calendar, confirm: isNew, expectedRevision: planningRevision
+    }) });
+    document.querySelector("#semesterNotice").textContent = `已保存：${result.calendar.name}，第一周从 ${result.calendar.startDate} 开始`;
+    calendarInitialized = false;
+    viewingScheduleBatchId = "";
+    await refreshData();
+  } catch (error) { document.querySelector("#semesterNotice").textContent = error.message; }
+  finally { button.disabled = false; }
+}
+
+document.querySelector("#semesterForm").addEventListener("submit", event => saveSemester(event, false));
+document.querySelector("#newSemesterForm").addEventListener("submit", event => saveSemester(event, true));
 
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -410,7 +460,6 @@ async function previewScheduleFile() {
 
   analyzeScheduleFileBtn.disabled = true;
   confirmScheduleImportBtn.disabled = true;
-  confirmNewScheduleBatchBtn.disabled = true;
   scheduleImportNotice.textContent = "正在自动识别表格...";
   try {
     const fileDataUrl = await readFileAsDataUrl(file);
@@ -419,6 +468,7 @@ async function previewScheduleFile() {
       body: JSON.stringify({ fileName: file.name, fileDataUrl })
     });
     pendingScheduleImport = result.schedules;
+    pendingImportRevision = result.revision;
     renderScheduleImportPreview(result);
     scheduleImportNotice.textContent = result.count
       ? `已识别 ${result.count} 条固定排班，请确认后归档`
@@ -440,7 +490,6 @@ function renderScheduleImportPreview(result) {
   document.querySelector("#schedulePreviewDutyWarnings").textContent = result.notTwoDuties?.length || 0;
   document.querySelector("#schedulePreviewSource").textContent = result.fileName;
   confirmScheduleImportBtn.disabled = !result.count;
-  confirmNewScheduleBatchBtn.disabled = !result.count;
   scheduleBatchName.value = String(result.fileName || "")
     .replace(/\.(xlsx|xls|csv)$/i, "")
     .slice(0, 80);
@@ -448,6 +497,8 @@ function renderScheduleImportPreview(result) {
   document.querySelector("#scheduleSheetSummary").innerHTML = result.sheetSummaries.map((sheet) => `
     <div><strong>${escapeHtml(sheet.sheetName)}</strong><span>${escapeHtml(sheet.status)}</span></div>
   `).join("");
+  document.querySelector("#scheduleSheetSummary").innerHTML += (result.impact || []).map(item =>
+    `<div><strong>${escapeHtml(item.center)}</strong><span>${item.action}：${item.beforeCount} → ${item.afterCount} 条</span></div>`).join("");
 
   const shownIssues = result.issues || [];
   scheduleIssueSummary.classList.toggle("hidden", !result.issueCount);
@@ -473,42 +524,25 @@ function resetScheduleImport() {
   scheduleFileMeta.textContent = "尚未选择文件";
   analyzeScheduleFileBtn.disabled = true;
   confirmScheduleImportBtn.disabled = true;
-  confirmNewScheduleBatchBtn.disabled = true;
   scheduleBatchName.value = "";
   scheduleImportPreview.classList.add("hidden");
 }
 
-async function confirmScheduleImport(mode) {
+async function confirmScheduleImport() {
   if (!pendingScheduleImport?.length) return;
-  const importedCenters = [...new Set(pendingScheduleImport.map((row) => row.center))];
-  const isNewBatch = mode === "new-batch";
-  const prompt = isNewBatch
-    ? `将把这份文件作为新的固定排班启用，当前 ${currentScheduleCount} 条排班会转为只读历史版本。是否继续？`
-    : `将更新当前排班中 ${importedCenters.join("、")} 的数据，其他中心和历史版本保持不变。是否继续？`;
-  if (currentScheduleCount && !window.confirm(prompt)) return;
   confirmScheduleImportBtn.disabled = true;
-  confirmNewScheduleBatchBtn.disabled = true;
-  scheduleImportNotice.textContent = isNewBatch ? "正在创建并启用新的固定排班..." : "正在更新当前固定排班...";
   try {
-    const result = await fetchJson("/api/schedules", {
-      method: "POST",
-      body: JSON.stringify({
-        schedules: pendingScheduleImport,
-        mode,
-        batchName: scheduleBatchName.value.trim()
-      })
-    });
-    const warning = result.notTwoDuties?.length ? `；${result.notTwoDuties.length} 位同学的排班次数不是 2 次` : "";
-    scheduleImportNotice.textContent = isNewBatch
-      ? `已启用 ${result.importedCount || pendingScheduleImport.length} 条新固定排班，上一版已只读保存${warning}`
-      : `已更新 ${result.importedCount || pendingScheduleImport.length} 条当前固定排班，其他中心和历史版本已保留${warning}`;
+    const result = await fetchJson("/api/schedules", { method: "POST", body: JSON.stringify({
+      schedules: pendingScheduleImport, mode: "replace-centers", expectedRevision: pendingImportRevision, sourceName: scheduleBatchName.value.trim()
+    }) });
+    scheduleImportNotice.textContent = result.impact.map(item => `${item.action} ${item.center}：${item.afterCount} 条`).join("；");
     viewingScheduleBatchId = "";
+    schedulePaste.value = "";
     resetScheduleImport();
     await refreshData();
   } catch (error) {
     if (!handleAuthError(error)) scheduleImportNotice.textContent = error.message;
     confirmScheduleImportBtn.disabled = false;
-    confirmNewScheduleBatchBtn.disabled = false;
   }
 }
 
@@ -529,7 +563,10 @@ loginForm.addEventListener("submit", async (event) => {
   loginBtn.textContent = "正在进入...";
   try {
     const formData = new FormData(loginForm);
-    await fetchJson("/api/admin-login", { method: "POST", body: JSON.stringify({ password: formData.get("password") }) });
+    await fetchJson("/api/admin-login", {
+      method: "POST",
+      body: JSON.stringify({ account: formData.get("account"), password: formData.get("password") })
+    });
     loginForm.reset();
     await startAdmin();
   } catch (error) {
@@ -575,7 +612,6 @@ scheduleFile.addEventListener("change", () => {
 });
 analyzeScheduleFileBtn.addEventListener("click", previewScheduleFile);
 confirmScheduleImportBtn.addEventListener("click", () => confirmScheduleImport("replace-centers"));
-confirmNewScheduleBatchBtn.addEventListener("click", () => confirmScheduleImport("new-batch"));
 cancelScheduleImportBtn.addEventListener("click", () => {
   resetScheduleImport();
   scheduleImportNotice.textContent = "";

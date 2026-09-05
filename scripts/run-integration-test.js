@@ -18,7 +18,7 @@ const env = {
   TEST_BASE_URL: baseUrl
 };
 
-const server = spawn(process.execPath, ["local-server.js"], {
+const server = spawn(process.execPath, ["--require", "./scripts/test-clock.js", "local-server.js"], {
   cwd: root,
   env,
   stdio: ["ignore", "pipe", "pipe"],

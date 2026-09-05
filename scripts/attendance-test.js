@@ -90,7 +90,7 @@ assert.match(signOutOnly.rows[0].reason, /没有签到/);
 const noRecords = summary([]);
 assert.equal(noRecords.rows[0].status, "待核查");
 assert.equal(noRecords.rows[0].needsReview, true);
-assert.match(noRecords.rows[0].reason, /缺勤、调班或填写错误/);
+assert.match(noRecords.rows[0].reason, /缺勤、调班、请假或填写错误/);
 
 const mismatch = summary([
   checkin("wrong-weekday", "2026-03-03T00:29:00.000Z", "签到", { weekday: "星期二" })

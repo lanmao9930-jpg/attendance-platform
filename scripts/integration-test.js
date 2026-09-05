@@ -25,8 +25,8 @@ function scheduleWorkbookDataUrl() {
   const worksheet = XLSX.utils.aoa_to_sheet([
     ["\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3\u56fa\u5b9a\u6392\u73ed"],
     [],
-    ["\u5468\u6b21", "\u661f\u671f", "\u8282\u6b21", "\u503c\u73ed\u4eba\u5458", "\u804c\u4f4d", "\u8054\u7cfb\u7535\u8bdd"],
-    ["\u7b2c14\u5468", "\u661f\u671f\u4e00", "\u4e00\u4e8c\u8282", "\u6d4b\u8bd5\u540c\u5b66", "\u5b66\u751f\u52a9\u7406", "13800000000"]
+    ["\u5468\u6b21", "\u661f\u671f", "\u8282\u6b21", "\u5b66\u53f7", "\u503c\u73ed\u4eba\u5458", "\u804c\u4f4d", "\u8054\u7cfb\u7535\u8bdd"],
+    ["\u7b2c14\u5468", "\u661f\u671f\u4e00", "\u4e00\u4e8c\u8282", "20260001", "\u6d4b\u8bd5\u540c\u5b66", "\u5b66\u751f\u52a9\u7406", "13800000000"]
   ]);
   XLSX.utils.book_append_sheet(workbook, worksheet, "\u6392\u73ed\u5bfc\u5165");
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
@@ -34,232 +34,93 @@ function scheduleWorkbookDataUrl() {
 }
 
 async function run() {
-  const root = await request("/");
-  const displayPage = await request("/display");
-  const studentPage = await request("/student?token=test");
-  assert.equal(root.response.status, 200);
-  assert.match(root.body, /\/display/);
-  assert.doesNotMatch(root.body, /admin/i);
-  assert.doesNotMatch(displayPage.body, /admin/i);
-  assert.doesNotMatch(studentPage.body, /admin/i);
-
-  const health = await request("/api/health");
-  assert.equal(health.response.status, 200);
-  assert.equal(health.body.ok, true);
-
-  const protectedWithoutLogin = await request("/api/schedules");
-  assert.equal(protectedWithoutLogin.response.status, 401);
-
-  const displayWithoutKey = await request("/api/current-qr");
-  assert.equal(displayWithoutKey.response.status, 401);
-
-  const display = await request("/api/current-qr?displayKey=display-test-key");
-  assert.equal(display.response.status, 200);
-  assert.match(display.body.checkinUrl, /\/student\?token=/);
-
-  const studentSession = await request("/api/open-checkin", {
-    method: "POST",
-    body: json({ token: display.body.token })
-  });
-  assert.equal(studentSession.response.status, 200);
-  assert.ok(studentSession.body.session);
-
-  const login = await request("/api/admin-login", {
-    method: "POST",
-    body: json({ password: "12345678" })
-  });
+  const publicPages = await Promise.all(["/", "/display", "/student?token=test"].map(p => request(p)));
+  for (const page of publicPages) { assert.equal(page.response.status, 200); assert.doesNotMatch(page.body, /admin/i); }
+  for (const endpoint of ["/api/schedules", "/api/semester", "/api/schedule-imports", "/api/checkins", "/api/photo?id=x"]) {
+    assert.equal((await request(endpoint)).response.status, 401);
+  }
+  const login = await request("/api/admin-login", { method: "POST", body: json({ account: "admin", password: "12345678" }) });
   assert.equal(login.response.status, 200);
-  assert.match(adminCookie, /^attendance_admin=/);
-
-  const adminDisplay = await request("/api/admin-display-url", {}, true);
-  assert.equal(adminDisplay.response.status, 200);
-  assert.match(adminDisplay.body.displayUrl, /\/display\?key=display-test-key$/);
-
-  const preview = await request("/api/schedule-import/preview", {
-    method: "POST",
-    body: json({
-      fileName: "\u817e\u8baf\u6587\u6863\u56fa\u5b9a\u6392\u73ed.xlsx",
-      fileDataUrl: scheduleWorkbookDataUrl()
-    })
-  }, true);
-  assert.equal(preview.response.status, 200);
+  let timing = await request("/api/semester", {}, true);
+  assert.equal(timing.body.calendar.startDate, "2026-09-07");
+  assert.equal(timing.body.calendar.week, 1);
+  let revision = timing.body.revision;
+  const preview = await request("/api/schedule-import/preview", { method: "POST", body: json({
+    fileName: "schedule.xlsx", fileDataUrl: scheduleWorkbookDataUrl()
+  }) }, true);
+  assert.equal(preview.response.status, 200, json(preview.body));
   assert.equal(preview.body.count, 1);
-  assert.equal(preview.body.issueCount, 0);
-
-  const imported = await request("/api/schedules", {
-    method: "POST",
-    body: json({ schedules: preview.body.schedules, mode: "new-batch", batchName: "测试固定排班" })
-  }, true);
-  assert.equal(imported.response.status, 200);
-  assert.equal(imported.body.count, 1);
-
-  const partialCenterUpdate = await request("/api/schedules", {
-    method: "POST",
-    body: json({
-      mode: "replace-centers",
-      schedules: [{
-        center: "\u5927\u6570\u636e\u4e2d\u5fc3",
-        week: 14,
-        weekday: "\u661f\u671f\u4e8c",
-        shift: "\u4e09\u56db\u8282",
-        name: "\u4fdd\u7559\u6d4b\u8bd5"
-      }]
-    })
-  }, true);
-  assert.equal(partialCenterUpdate.response.status, 200);
-  assert.equal(partialCenterUpdate.body.importedCount, 1);
-  assert.equal(partialCenterUpdate.body.count, 2);
-  assert.deepEqual(partialCenterUpdate.body.replacedCenters, ["\u5927\u6570\u636e\u4e2d\u5fc3"]);
-
-  const photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl7P+UAAAAASUVORK5CYII=";
-  const studentRecord = {
-    session: studentSession.body.session,
-    name: "\u6d4b\u8bd5\u540c\u5b66",
-    center: "\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3",
-    position: "\u5b66\u751f\u52a9\u7406",
-    dutyType: "\u6b63\u5e38",
-    week: 14,
-    weekday: "\u661f\u671f\u4e00",
-    shifts: ["\u4e00\u4e8c\u8282"],
-    photoName: "test.png",
-    photoDataUrl: photo
-  };
-  const signIn = await request("/api/checkins", { method: "POST", body: json({ ...studentRecord, attendanceType: "\u7b7e\u5230" }) });
-  const signOut = await request("/api/checkins", { method: "POST", body: json({ ...studentRecord, attendanceType: "\u7b7e\u9000" }) });
-  assert.equal(signIn.response.status, 200);
-  assert.equal(signOut.response.status, 200);
-
-  const mismatchCheckin = await request("/api/checkins", {
-    method: "POST",
-    body: json({ ...studentRecord, weekday: "\u661f\u671f\u4e8c", attendanceType: "\u7b7e\u5230" })
-  });
-  assert.equal(mismatchCheckin.response.status, 200);
-
-  const rejectedSwap = await request("/api/checkins", {
-    method: "POST",
-    body: json({
-      ...studentRecord,
-      dutyType: "\u8c03\u73ed",
-      weekday: "\u661f\u671f\u4e8c",
-      shifts: ["\u4e09\u56db\u8282"],
-      attendanceType: "\u7b7e\u5230"
-    })
-  });
-  assert.equal(rejectedSwap.response.status, 400);
-
-  const swapDetails = "\u539f\u661f\u671f\u4e00\u4e00\u4e8c\u8282\uff0c\u4e0e\u540c\u5b66\u4e92\u6362\u4e3a\u661f\u671f\u4e8c\u4e09\u56db\u8282";
-  const swapSignIn = await request("/api/checkins", {
-    method: "POST",
-    body: json({
-      ...studentRecord,
-      dutyType: "\u8c03\u73ed",
-      swapTime: swapDetails,
-      weekday: "\u661f\u671f\u4e8c",
-      shifts: ["\u4e09\u56db\u8282"],
-      attendanceType: "\u7b7e\u5230"
-    })
-  });
-  const swapSignOut = await request("/api/checkins", {
-    method: "POST",
-    body: json({
-      ...studentRecord,
-      dutyType: "\u8c03\u73ed",
-      swapTime: swapDetails,
-      weekday: "\u661f\u671f\u4e8c",
-      shifts: ["\u4e09\u56db\u8282"],
-      attendanceType: "\u7b7e\u9000"
-    })
-  });
-  assert.equal(swapSignIn.response.status, 200);
-  assert.equal(swapSignOut.response.status, 200);
-
-  const rawCheckins = await request("/api/checkins", {}, true);
-  const mismatchRaw = rawCheckins.body.checkins.find((record) => record.id === mismatchCheckin.body.record.id);
-  assert.equal(mismatchRaw.matchStatus, "\u5f02\u5e38");
-  assert.match(mismatchRaw.matchReason, /\u661f\u671f\u4e0e\u56fa\u5b9a\u6392\u73ed\u4e0d\u4e00\u81f4/);
-  const swapRaw = rawCheckins.body.checkins.find((record) => record.id === swapSignIn.body.record.id);
-  assert.equal(swapRaw.matchStatus, "\u8c03\u73ed");
-
-  const automaticSummary = await request("/api/summary?week=14&center=\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3", {}, true);
-  assert.equal(automaticSummary.body.unmatched.length, 1);
-  assert.equal(automaticSummary.body.unmatched[0].status, "\u5f02\u5e38");
-  assert.equal(automaticSummary.body.rows[0].systemStatus, "\u8c03\u73ed");
-  assert.equal(automaticSummary.body.rows[0].statusSource, "\u5b66\u751f\u7533\u62a5");
-
-  const rejectedReview = await request("/api/reviews", {
-    method: "POST",
-    body: json({ scheduleId: imported.body.schedules[0].id, status: "\u8c03\u73ed", remark: "" })
-  }, true);
-  assert.equal(rejectedReview.response.status, 400);
-
-  const savedReview = await request("/api/reviews", {
-    method: "POST",
-    body: json({ scheduleId: imported.body.schedules[0].id, status: "\u8bf7\u5047", remark: "\u5df2\u6838\u9a8c\u8bf7\u5047\u624b\u7eed" })
-  }, true);
-  assert.equal(savedReview.response.status, 200);
-
+  const a = { ...preview.body.schedules[0], week: 1, weeks: [1], weekLabel: "第1周" };
+  const b = { ...a, id: "b", studentNo: "20260002", name: "数据同学", center: "大数据中心" };
+  async function importRows(rows, extra = {}) {
+    const result = await request("/api/schedules", { method: "POST", body: json({ schedules: rows, expectedRevision: revision, ...extra }) }, true);
+    if (result.response.ok) revision = result.body.revision;
+    return result;
+  }
+  const first = await importRows([a]);
+  assert.equal(first.response.status, 200, json(first.body));
+  assert.equal(first.body.count, 1);
+  const firstId = first.body.schedules[0].id;
+  const second = await importRows([b]);
+  assert.equal(second.body.count, 2);
+  assert.ok(second.body.schedules.some(row => row.id === firstId));
+  const reviewed = await request("/api/reviews", { method: "POST", body: json({ scheduleId: firstId, status: "请假", remark: "测试复核" }) }, true);
+  assert.equal(reviewed.response.status, 200);
+  const bUpdated = await importRows([{ ...b, shift: "三四节" }]);
+  assert.equal(bUpdated.body.count, 2);
+  assert.equal(bUpdated.body.impact[0].action, "更新");
   const summary = await request("/api/summary", {}, true);
-  assert.equal(summary.response.status, 200);
-  assert.equal(summary.body.rows[0].status, "\u8bf7\u5047");
+  assert.equal(summary.body.rows.find(row => row.id === firstId).status, "请假");
+  assert.equal(summary.body.rows[0].date, "2026-09-07");
+  const duplicate = await importRows([{ ...b, shift: "三四节" }, { ...b, shift: "三四节" }]);
+  assert.equal(duplicate.body.count, 2);
+  assert.equal((await importRows([a], { expectedRevision: 0 })).response.status, 409);
+  assert.equal((await importRows([a], { mode: "new-batch" })).response.status, 400);
+  const snapshots = await request("/api/schedule-imports", {}, true);
+  assert.ok(snapshots.body.imports.length >= 4);
+  const snap = await request("/api/schedule-imports?id=" + bUpdated.body.snapshotId, {}, true);
+  assert.ok(snap.body.schedules.some(row => row.center === b.center && row.shift === "一二节"));
 
-  const photoResult = await request(`/api/photo?id=${encodeURIComponent(signIn.body.record.id)}`, {}, true);
-  assert.equal(photoResult.response.status, 200);
-  assert.match(photoResult.contentType, /^image\//);
-
-  const multiShiftCheckin = await request("/api/checkins", {
-    method: "POST",
-    body: json({
-      ...studentRecord,
-      shifts: ["\u4e00\u4e8c\u8282", "\u4e09\u56db\u8282", "\u4e00\u4e8c\u8282"],
-      attendanceType: "\u7b7e\u5230"
-    })
-  });
-  assert.equal(multiShiftCheckin.response.status, 200);
-  assert.deepEqual(multiShiftCheckin.body.record.shifts, ["\u4e00\u4e8c\u8282", "\u4e09\u56db\u8282"]);
-
-  const newBatch = await request("/api/schedules", {
-    method: "POST",
-    body: json({
-      mode: "new-batch",
-      batchName: "\u65b0\u5b66\u671f\u56fa\u5b9a\u6392\u73ed",
-      schedules: [{
-        center: "\u884c\u653f\u4e8b\u52a1\u4e2d\u5fc3",
-        week: 1,
-        weekday: "\u661f\u671f\u4e09",
-        shift: "\u4e94\u516d\u8282",
-        name: "\u65b0\u5b66\u671f\u6d4b\u8bd5"
-      }]
-    })
-  }, true);
-  assert.equal(newBatch.response.status, 200);
-  assert.equal(newBatch.body.count, 1);
-  assert.equal(newBatch.body.totalStored, 3);
-  assert.equal(newBatch.body.batches.length, 2);
-
-  const archivedBatch = await request(`/api/schedules?batchId=${encodeURIComponent(imported.body.batchId)}`, {}, true);
-  assert.equal(archivedBatch.response.status, 200);
-  assert.equal(archivedBatch.body.schedules.length, 2);
-
-  const checkinsAfterBatchSwitch = await request("/api/checkins", {}, true);
-  const oldRecord = checkinsAfterBatchSwitch.body.checkins.find((record) => record.id === signIn.body.record.id);
-  assert.equal(oldRecord.matchStatus, "\u5386\u53f2\u8bb0\u5f55");
-
-  console.log(JSON.stringify({
-    health: health.body.version,
-    storage: health.body.storageMode,
-    displayUrlProtected: /display\?key=display-test-key$/.test(adminDisplay.body.displayUrl),
-    importedSchedules: imported.body.count,
-    partialCenterTotal: partialCenterUpdate.body.count,
-    unmatchedStatus: mismatchRaw.matchStatus,
-    studentSwapStatus: swapRaw.matchStatus,
-    multiShiftCount: multiShiftCheckin.body.record.shifts.length,
-    finalStatus: summary.body.rows[0].status,
-    scheduleBatches: newBatch.body.batches.length,
-    photoContentType: photoResult.contentType
-  }));
+  const qr = await request("/api/current-qr", {}, true);
+  const opened = await request("/api/open-checkin", { method: "POST", body: json({ token: qr.body.token }) });
+  assert.equal(opened.response.status, 200);
+  const photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl7P+UAAAAASUVORK5CYII=";
+  const record = { session: opened.body.session, name: a.name, center: a.center, studentNo: a.studentNo, position: "学生助理",
+    dutyType: "正常", week: 19, weekday: "星期五", shifts: ["五六节", "七八节", "五六节"], attendanceType: "签到", photoName: "test.png", photoDataUrl: photo };
+  const saved = await request("/api/checkins", { method: "POST", body: json(record) });
+  assert.equal(saved.response.status, 200, json(saved.body));
+  assert.equal(saved.body.record.week, 1);
+  assert.equal(saved.body.record.weekday, "星期一");
+  assert.deepEqual(saved.body.record.shifts, ["五六节", "七八节"]);
+  const photoResponse = await request("/api/photo?id=" + saved.body.record.id, {}, true);
+  assert.equal(photoResponse.response.status, 200);
+  const missingNote = await request("/api/checkins", { method: "POST", body: json({ ...record, shifts: ["三四节"], dutyType: "调班" }) });
+  assert.equal(missingNote.response.status, 400);
+  const swap = await request("/api/checkins", { method: "POST", body: json({ ...record, shifts: ["三四节"], dutyType: "调班", swapTime: "原星期一一二节改为三四节" }) });
+  assert.equal(swap.response.status, 200);
+  const staleDate = await request("/api/checkins", { method: "POST", body: json({ ...record, dutyDate: "2026-09-06" }) });
+  assert.equal(staleDate.response.status, 409);
+  const blockedEdit = await request("/api/semester", { method: "POST", body: json({
+    action: "calendar", expectedRevision: revision, calendar: { name: "错误日期", startDate: "2026-09-14", weekCount: 20 }
+  }) }, true);
+  assert.equal(blockedEdit.response.status, 409);
+  const semester = await request("/api/semester", { method: "POST", body: json({
+    action: "new-semester", confirm: true, expectedRevision: revision,
+    calendar: { name: "2027年春季", startDate: "2027-03-01", weekCount: 20 }
+  }) }, true);
+  assert.equal(semester.response.status, 200, json(semester.body));
+  assert.equal(semester.body.count, 0);
+  revision = semester.body.revision;
+  assert.equal((await request("/api/calendar")).body.calendar.status, "before");
+  assert.equal((await request("/api/checkins", { method: "POST", body: json(record) })).response.status, 400);
+  const raw = await request("/api/checkins", {}, true);
+  assert.ok(raw.body.checkins.every(row => row.matchStatus === "历史记录"));
+  const historical = await request("/api/schedule-imports?id=" + semester.body.snapshotId, {}, true);
+  assert.equal(historical.body.schedules.length, 2);
+  const next = await importRows([a]);
+  assert.equal(next.body.count, 1);
+  assert.equal(next.body.calendar.startDate, "2027-03-01");
+  console.log("Integration passed: calendar, multi-center updates, snapshots, student clock, auth, photos and semester archive.");
 }
 
-run().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+run().catch(error => { console.error(error); process.exitCode = 1; });
