@@ -84,11 +84,13 @@ async function run() {
   const qr = await request("/api/current-qr", {}, true);
   const opened = await request("/api/open-checkin", { method: "POST", body: json({ token: qr.body.token }) });
   assert.equal(opened.response.status, 200);
+  assert.ok(opened.body.options.positions.includes("副团长"));
   const photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl7P+UAAAAASUVORK5CYII=";
-  const record = { session: opened.body.session, name: a.name, center: a.center, studentNo: a.studentNo, position: "学生助理",
+  const record = { session: opened.body.session, name: a.name, center: a.center, studentNo: a.studentNo, position: "副团长",
     dutyType: "正常", week: 19, weekday: "星期五", shifts: ["五六节", "七八节", "五六节"], attendanceType: "签到", photoName: "test.png", photoDataUrl: photo };
   const saved = await request("/api/checkins", { method: "POST", body: json(record) });
   assert.equal(saved.response.status, 200, json(saved.body));
+  assert.equal(saved.body.record.position, "副团长");
   assert.equal(saved.body.record.week, 1);
   assert.equal(saved.body.record.weekday, "星期一");
   assert.deepEqual(saved.body.record.shifts, ["五六节", "七八节"]);
