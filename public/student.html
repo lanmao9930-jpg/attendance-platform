@@ -16,8 +16,8 @@
         </div>
 
         <div id="loadingNotice" class="notice">正在校验二维码...</div>
-        <div id="errorNotice" class="notice error hidden"></div>
-        <div id="successNotice" class="notice hidden"></div>
+        <div id="errorNotice" class="notice error hidden" role="alert"></div>
+        <div id="successNotice" class="notice hidden" role="status" tabindex="-1"></div>
 
         <form id="checkinForm" class="hidden">
           <div class="field-grid">
@@ -60,15 +60,16 @@
             </div>
             <div class="field">
               <label for="photo">值班照片</label>
-              <input id="photo" name="photo" type="file" accept="image/*" capture="environment" required>
+              <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required>
             </div>
           </div>
+          <div id="submitError" class="notice error hidden" role="alert" tabindex="-1" style="margin-top: 12px;"></div>
           <div class="toolbar" style="margin-top: 18px;">
             <button class="button" id="submitBtn" type="submit">提交签到签退</button>
           </div>
         </form>
       </section>
     </main>
-    <script src="/student.js"></script>
+    <script src="/student.js?v=0.10.2"></script>
   </body>
 </html>

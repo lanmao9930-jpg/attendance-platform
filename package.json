@@ -1,6 +1,6 @@
 {
   "name": "attendance-platform",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "type": "commonjs",
   "scripts": {
@@ -9,7 +9,8 @@
     "check": "node scripts/check.js",
     "test:schedule-import": "node scripts/schedule-import-test.js",
     "test:unit": "node scripts/calendar-test.js && node scripts/planning-test.js && node scripts/cloud-planning-test.js && node scripts/schedule-import-test.js && node scripts/attendance-test.js",
-    "test:integration": "node scripts/run-integration-test.js"
+    "test:integration": "node scripts/run-integration-test.js",
+    "test:student-photo": "node scripts/student-photo-test.js"
   },
   "dependencies": {
     "@cloudbase/node-sdk": "^3.18.3",
